@@ -1,0 +1,182 @@
+#
+# 
+# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
+#
+# $Copyright: (c) 2020 Broadcom Inc.
+# All Rights Reserved$
+#
+# Make.libs:
+#       Defines recipe for building libraries
+#       and linker rules to include libraries
+
+# Include FSAL config
+include $(TOPDIR)/make/fsal.config
+
+# Disable file system support by default
+export CONFIG_FS ?= 0
+
+# Feature specific Cflags for this build
+ifeq ($(CONFIG_FS),1)
+    export CFLAGS += -DCONFIG_FS
+    export CFLAGS += -DCONFIG_FS_SIZE_IN_KB=$(CONFIG_FS_SIZE_IN_KB)
+endif
+ifeq ($(CONFIG_LLDP),1)
+    export CFLAGS += -DCFG_LLDP_INCLUDED
+    export CFLAGS += -DCONFIG_LLDP
+endif
+
+ifeq ($(CONFIG_IGMP_SNOOPING),1)
+     export CFLAGS += -DCONFIG_IGMP_SNOOPING=1
+endif
+
+ifeq ($(CONFIG_RSTP),1)
+     export CFLAGS += -DCONFIG_RSTP=1
+endif
+
+ifeq ($(CONFIG_DOT1AS),1)
+     export CFLAGS += -DCONFIG_DOT1AS
+endif
+# Enable this if qspi flash driver is available
+CFLAGS += -DFLASH_DRIVER_AVAILABLE
+
+# Include compile options
+CFLAGS += -I$(TOPDIR)/include
+CFLAGS += -I$(TOPDIR)/include/shared
+CFLAGS += -I$(TOPDIR)/include/soc
+CFLAGS += -I$(TOPDIR)/include/soc/robo2
+CFLAGS += -I$(TOPDIR)/include/soc/robo2/common
+CFLAGS += -I$(TOPDIR)/include/osal
+CFLAGS += -I$(TOPDIR)/src/drivers/phy/include
+CFLAGS += -I$(TOPDIR)/src/drivers/phy/cdk/include
+CFLAGS += -I$(TOPDIR)/include/bsl_log
+CFLAGS += -I$(TOPDIR)/src/net/lwip
+CFLAGS += -I$(TOPDIR)/src/net/lwip/lwip-2.0.0/src/include
+CFLAGS += -I$(TOPDIR)/include/appl/snooping
+CFLAGS += -I$(TOPDIR)/include/appl/rstp
+CFLAGS += -I$(TOPDIR)/include/appl/dot1as
+CFLAGS += -I$(TOPDIR)/include/devfs
+ifeq ($(OS),openrtos)
+CFLAGS += -I$(TOPDIR)/src/appl/compilelib
+CFLAGS += -I$(TOPDIR)/platform/soc/cmsis/include
+CFLAGS += -I$(TOPDIR)/os/openrtos/kernel_source/include
+CFLAGS += -I$(TOPDIR)/os/openrtos/kernel_source/portable/ARM_CM7
+endif
+CFLAGS += -I$(TOPDIR)/include/appl/api/utils
+CFLAGS += -I$(TOPDIR)/include/appl/api/mgmt
+
+ifeq ($(CONFIG_IP_STACK),1)
+    CFLAGS += -DLWIP_COMPAT_SOCKETS=2
+    CFLAGS += -DLWIP_DNS
+endif
+
+# Libraries to links
+# Common libs are common to RSDK, ROBO-OS, BOOTLOADER
+export COMMON_LIBS += -lsoc -losal -losalcommon
+# PHY DRIVER libs are common to RSDK, ROBO-OS
+export PHY_DRIVER_LIBS = -lphygeneric -lphypkgsrc -lphyutil -lswitch
+
+#-------------------------------
+#Build flavor specific libraries
+#-------------------------------
+ifeq ($(BUILD_FLAVOR),ROBO_OS)
+    export COMMON_LIBS += -lfsal -lmac $(PHY_DRIVER_LIBS) -lcommon -lprotocommon -lmgmtapi -lapiutils
+else ifeq ($(BUILD_FLAVOR),RSDK)
+    export COMMON_LIBS += -lfsal -lmac $(PHY_DRIVER_LIBS) -lcommon
+else ifeq ($(BUILD_FLAVOR),BOOT_LOADER)
+    export COMMON_LIBS += -lloader
+endif
+
+#-------------------------------
+# OS specific libraries
+#-------------------------------
+ifeq ($(OS),openrtos)
+    export COMMON_LIBS += -lrtos -lqspi -lboard
+else ifeq ($(OS),linux)
+    export COMMON_LIBS += -pthread -lrt -ldl
+#    export COMMON_LIBS += -lreadline -lcurses
+endif
+
+#-------------------------------
+# M7 Linker Configs
+#-------------------------------
+ifeq ($(CPU),m7)
+    export LIBGCC_DIR = $(shell dirname `$(CC) $(CFLAGS) -print-libgcc-file-name`)
+    export LIBC_DIR = $(shell dirname `$(CC) $(CFLAGS) --print-file-name=libc.a`)
+    #export LDLIBS += --start-group $(LIBC_DIR)/libm.a $(LIBGCC_DIR)/libgcc.a --end-group
+    export LDLIBS += --start-group $(LIBGCC_DIR)/libgcc.a --end-group
+    export LDFLAGS += -static -nostdlib -nostartfiles --gc-sections
+ifeq ($(NOPIC),1)
+    export LDSCR = bcm53158_flash.ld
+else
+    export LDSCR = bcm53158_flash_pic.ld
+    export LDFLAGS += -u fat12_fs_img
+endif
+endif
+
+#-------------------------------
+# Config specific libraries
+#-------------------------------
+ifeq ($(CONFIG_LOADER),1)
+    export LIBS += -lcli -lzmodem $(COMMON_LIBS) -ldevfs
+else ifeq ($(CONFIG_CLI),1)
+    export LIBS += -ldiagint -ldiag -lcli $(COMMON_LIBS)
+else ifeq ($(CONFIG_DIAG),1)
+    export LIBS += -ldiag $(COMMON_LIBS)
+else ifeq ($(CONFIG_TEST),1)
+    export LIBS += -ltest $(COMMON_LIBS)
+else ifeq ($(CONFIG_CINT),1)
+    export LIBS += -lcint -lwrapper $(COMMON_LIBS)
+    ifeq ($(CONFIG_WEB_SERVER)$(CONFIG_CINT_WITH_WEB_SERVER),11)
+        # Include Web server library
+	    export LIBS += -lwebserver
+    endif
+    ifeq ($(OS),openrtos)
+        export LIBS += -lcompile
+    endif
+else ifeq ($(CONFIG_WEB_SERVER),1)
+    # Include Web server library
+    export LIBS += -lwebserver -lcli $(COMMON_LIBS)
+endif
+# Include IP stack library
+ifeq ($(CONFIG_IP_STACK),1)
+	export LIBS += -llwip
+endif
+
+# Include appl protocols
+ifeq ($(BUILD_FLAVOR),ROBO_OS)
+    # LLDP
+    ifeq ($(CONFIG_LLDP),1)
+        export LIBS += -llldp
+    endif
+
+    # IGMP Snooping library
+    ifeq ($(CONFIG_IGMP_SNOOPING),1)
+        export LIBS += -lsnooping
+    endif
+
+    # Include RSTP library
+    ifeq ($(CONFIG_RSTP),1)
+       export LIBS += -lrstp
+    endif
+
+endif
+
+ifeq ($(CONFIG_DOT1AS),1)
+    export LIBS += -ldot1as
+endif
+
+export CONFIG_I2C ?= 0
+
+ifeq ($(CONFIG_I2C),1)
+       export LIBS += -li2c
+endif
+
+ifeq ($(OS),openrtos)
+    libs: version
+endif
+
+libs:
+	@mkdir -p $(LIBDIR)
+	$(Q)$(MAKE) -C $(TOPDIR)/src
+	$(Q)$(MAKE) -C $(TOPDIR)/platform
+

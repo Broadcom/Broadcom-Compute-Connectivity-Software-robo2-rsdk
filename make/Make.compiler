@@ -1,0 +1,84 @@
+#
+# 
+# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
+#
+# $Copyright: (c) 2020 Broadcom Inc.
+# All Rights Reserved$
+#
+# Toolchain settings
+#
+#
+# Toolchain Settings
+#
+
+define N
+
+
+endef
+
+ifeq ($(CPU),m7)
+    #Compiler Toolchain and Config for openrtos
+    ifeq ($(shell uname -a | grep -i ubuntu | wc -l),1)
+        export BUILD_PLATFORM = UBUNTU
+        export TOOLCHAIN_PATH ?= /projects/ccxsw/toolchains/gcc-arm-none-eabi-6-2017-q1-update
+    else
+        $(warning $N$N!!!! YOU ARE BUILDING WITH AN OLDER TOOLCHAIN ...$N!!!! ALL ROBO-OS DEVELOPMENT/RELEASES HAVE MOVED TO USING TOOLCHAIN VERSION 6.3.1.$N!!!! TO BUILD WITH THE LATEST TOOLCHAIN YOU WILL NEED TO LOGIN TO AN UBUNTU 14 BUILD MACHINE.$N!!!! EX: bsub -I -q hyd-Bnwsoft -R ubuntu make umplus)
+        #$(info $(shell sleep 3))
+        export TOOLCHAIN_PATH ?= /projects/ccxsw/toolchains/gcc-arm-none-eabi-4_9-2015q3
+    endif
+    export CROSSCOMPILE = $(TOOLCHAIN_PATH)/bin/arm-none-eabi-
+    export ARM_PORT_VER = ARM_CM4F
+else ifeq ($(CPU),a57)
+    #Compiler Toolchain and Config for Ns2 RSDK
+    #export TOOLCHAIN_PATH = /projects/ccxsw/toolchains/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu/
+    export TOOLCHAIN_PATH ?= /projects/ccxsw/toolchains/gcc-linaro-aarch64-linux-gnu-4.9-2014.09_linux/
+    export CROSSCOMPILE = $(TOOLCHAIN_PATH)/bin/aarch64-linux-gnu-
+else ifeq ($(CPU),NS2)
+    # Toolchain and Config for Ns2 RSDK
+    #export TOOLCHAIN_PATH = /projects/ccxsw/toolchains/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu/
+    export TOOLCHAIN_PATH ?= /projects/ccxsw/toolchains/gcc-linaro-aarch64-linux-gnu-4.9-2014.09_linux
+    export CROSSCOMPILE = $(TOOLCHAIN_PATH)/bin/aarch64-linux-gnu-
+else ifeq ($(CPU),NSP)
+    # Toolchain for NSP RSDK
+    export TOOLCHAIN_PATH ?= /projects/ccxsw/toolchains/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf
+    export CROSSCOMPILE = $(TOOLCHAIN_PATH)/bin/arm-linux-gnueabihf-
+else
+    #Native compiler
+    export CROSSCOMPILE =
+endif
+
+export CC=$(CROSSCOMPILE)gcc
+export LD=$(CROSSCOMPILE)ld
+export AS=$(CROSSCOMPILE)as
+export AR=$(CROSSCOMPILE)ar
+export OBJCOPY=$(CROSSCOMPILE)objcopy
+export OBJDUMP=$(CROSSCOMPILE)objdump
+export STRIP=$(CROSSCOMPILE)strip
+export SIZE=$(CROSSCOMPILE)size
+
+
+#
+# CPU Specific Compiler Configs
+#
+ifeq ($(CPU),m7)
+    ARCH=armv7e-m
+    PROCESSOR=cortex-m7
+    ISA=thumb
+    export CFLAGS += -m$(ISA) -mcpu=$(PROCESSOR) -DCORTEX_M7 -mlong-calls
+    export CFLAGS += -DCONFIG_SYSTEM_INIT
+else ifeq ($(CPU),a57)
+    ARCH=arm8
+    PROCESSOR=cortex-a57
+    export CFLAGS += -mcpu=$(PROCESSOR)
+else ifeq ($(CPU),NS2)
+    ARCH=arm8
+    PROCESSOR=cortex-a57
+    export CFLAGS += -DBCM_NORTHSTART2_SUPPORT -mcpu=$(PROCESSOR)
+else ifeq ($(CPU),NSP)
+    ARCH=arm
+    PROCESSOR=cortex-a9
+    export CFLAGS += -DBCM_NORTHSTAR_PLUS_SUPPORT -mcpu=$(PROCESSOR)
+else
+    export CFLAGS += -I/usr/include
+endif
+

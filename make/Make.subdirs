@@ -1,0 +1,15 @@
+#
+# Make.subdirs
+# Call make in each subdir
+#
+
+.PHONY: all
+
+all:
+	@$(foreach dir,$(subdirs),echo 'Building $(dir)';$(MAKE) $(MAKEOPTS) -C $(dir) || exit -1;)
+
+clean:
+	@$(foreach dir,$(subdirs),echo 'Clean $(dir)';$(MAKE) -C $(dir) clean;)
+	
+
+

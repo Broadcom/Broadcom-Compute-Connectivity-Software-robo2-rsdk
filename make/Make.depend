@@ -1,0 +1,21 @@
+$(BLDOUT)/%.o: %.c
+	$(Q)echo '[Compile ... $(notdir $<)]'
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CC) -c $(CFLAGS) -ffunction-sections -MMD -o $@ $<
+
+$(BLDOUT)/%.o: %.S
+	$(Q)echo '[Compile ... $(notdir $<)]'
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CC) -c $(CFLAGS) -MMD -o $@ $<
+
+$(LIBDIR)/$(TARGET).a: $(OBJS)
+	$(Q)echo "[Archive ... $(notdir $@)]"
+	$(Q)mkdir -p $(LIBDIR)
+	$(Q)$(AR) rs $@ $^
+
+.PHONY: clean
+
+clean:
+	$(Q)echo "Cleaning Object files and Libraries"
+	$(Q)$(RM) -f $(OBJS) $(LIBDIR)/$(TARGET).a
+

@@ -1,0 +1,58 @@
+#
+# $Id: $
+# 
+# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
+#
+# $Copyright: (c) 2020 Broadcom Inc.
+# All Rights Reserved$
+#
+# Make Targets
+#
+
+#
+# Coverity Targets
+#
+export COVERITY=/projects/ccxsw_tools/contrib/coverity/coverity-build-stream.pl
+export COVOUT=$(OUTPUTDIR)/coverity
+
+.PHONY: coverity cvclean checkop
+
+coverity: checkop
+	@mkdir -p $(COVOUT)
+	@echo "Coverity Static Analysis starting..."
+	@$(COVERITY) --output $(COVOUT) make
+
+cvclean:
+	@(RM) -rf $(COVOUT)
+
+checkop:
+	@echo $(shell pwd) | grep systems || { echo "*** Error: Pls run under any of the valid systems folder"; exit -1; }
+	@test -s Makefile || { echo "*** Error: Cannot find Makefile, pls run under any of the systems folder"; exit -1; }
+ifeq ($(OUTPUTDIR),)
+	$(error *** Error: OUTPUTDIR is undefined!)
+endif
+
+#
+# CINT
+#
+
+cint: build libs
+	@echo "Completed library build required for cint"
+
+cintclean: clean
+	@echo "Cleaning cint and other libraries"
+	@$(MAKE) -C $(TOPDIR)/src/appl/cint clean
+
+#
+# Versioning
+#
+MKVERSION := $(TOPDIR)/make/mkversion.pl
+MKRELVERSION := $(TOPDIR)/make/mkrelversion.pl
+version:
+ifeq ($(wildcard $(MKVERSION)), )
+	$(MKRELVERSION) $(TOPDIR)/include/shared/version.h
+else
+	$(MKVERSION) $(TOPDIR)/tools/regs_robo2/bcm53158_a0 $(TOPDIR)/include/shared/version.h
+endif
+
+
