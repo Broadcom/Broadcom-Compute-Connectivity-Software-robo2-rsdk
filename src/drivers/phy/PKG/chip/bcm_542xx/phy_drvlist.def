@@ -1,0 +1,3 @@
+#define BCM542xx_DRV_INSTALLED
+extern phy_driver_t bcm542xx_drv;
+
