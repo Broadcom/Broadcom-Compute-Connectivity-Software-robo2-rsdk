@@ -152,76 +152,87 @@ typedef enum phymod_interface_e {
 #define AVNG_PHY_ABIL_100MB          (AVNG_PHY_ABIL_100MB_HD | AVNG_PHY_ABIL_100MB_FD)
 #define AVNG_PHY_ABIL_1000MB         (AVNG_PHY_ABIL_1000MB_HD | AVNG_PHY_ABIL_1000MB_FD)
 
-extern int 
+#ifdef CONFIG_10G_INTF_KR
+#define REG_ACCESS_METHOD_SHIFT                  28
+#define REG_ACC_TSC_IBLK                         (0x7 << REG_ACCESS_METHOD_SHIFT)
+#define TSCE_RX_X4_STATUS1_PMA_PMD_LIVE_STATUS   0xc470
+#define TSCE_RX_X4_STATUS1_PCS_LIVE_STATUS       0xc474
+#define TSCE_AN_X4_ABILITIES_ENABLES             0xc480
+#define TSCE_AN_X4_ABILITIES_ENABLES_AN               (1L << 14)
+#define TSCE_AN_X4_ABILITIES_ENABLES_CL73             (1L << 8)
+#define TSCE_AN_X4_ABILITIES_ENABLES_CL73_AN_RESTART  (1L << 0)
+#endif
+
+extern int
 avng_phy_probe(int unit, uint8_t port);
 
-extern int 
+extern int
 avng_phy_init(int unit, uint8_t port);
 
-extern int 
+extern int
 avng_phy_init_with_speed(int unit, uint8_t port, uint32_t speed);
 
-extern int 
+extern int
 avng_phy_staged_init(int unit);
 
-extern int 
+extern int
 avng_phy_attach(int unit, uint8_t port);
 
-extern int 
+extern int
 avng_phy_detach(int unit, uint8_t port);
 
-extern int 
+extern int
 avng_phy_mode_set(int unit, uint8_t port, char *name, int mode, int enable);
 
-extern int 
+extern int
 avng_phy_notify_mac_enable(int unit, uint8_t port, int enable);
 
-extern int 
+extern int
 avng_phy_notify_mac_loopback(int unit, uint8_t port, uint32_t enable);
 
-extern int 
+extern int
 avng_phy_link_get(int unit, uint8_t port, uint32_t *link);
 
-extern int 
+extern int
 avng_phy_autoneg_set(int unit, uint8_t port, uint32_t an);
 
-extern int 
+extern int
 avng_phy_autoneg_get(int unit, uint8_t port, uint32_t *an);
 
-extern int 
+extern int
 avng_phy_speed_set(int unit, uint8_t port, uint32_t speed);
 
-extern int 
+extern int
 avng_phy_speed_get(int unit, uint8_t port, uint32_t *speed);
 
-extern int 
+extern int
 avng_phy_duplex_set(int unit, uint8_t port, uint32_t duplex);
 
-extern int 
+extern int
 avng_phy_duplex_get(int unit, uint8_t port, uint32_t *duplex);
 
-extern int 
+extern int
 avng_phy_loopback_set(int unit, uint8_t port, uint32_t enable);
 
-extern int 
+extern int
 avng_phy_loopback_get(int unit, uint8_t port, uint32_t *enable);
 
-extern int 
+extern int
 avng_phy_remote_loopback_set(int unit, uint8_t port, int enable);
 
-extern int 
+extern int
 avng_phy_remote_loopback_get(int unit, uint8_t port, int *enable);
 
-extern int 
+extern int
 avng_phy_line_interface_set(int unit, uint8_t port, int intf);
 
-extern int 
+extern int
 avng_phy_line_interface_get(int unit, uint8_t port, int *intf);
 
-extern int 
+extern int
 avng_phy_eee_set(int unit, uint8_t port, uint32_t mode);
 
-extern int 
+extern int
 avng_phy_eee_get(int unit, uint8_t port, uint32_t *mode);
 
 extern int
@@ -230,23 +241,23 @@ avng_phy_media_type_set(int unit, uint8_t port, uint32_t media);
 extern int
 avng_phy_media_type_get(int unit, uint8_t port, uint32_t *media);
 
-extern int 
+extern int
 avng_phy_fw_helper_set(int unit, uint8_t port,
                       int (*fw_helper)(void *, uint32_t, uint32_t, void *));
 
-extern int 
+extern int
 avng_phy_fw_info_get(void *ctx, int *unit, int *port, const char **drv_name);
 
-extern int 
+extern int
 avng_phy_fw_base_set(int unit, uint8_t port, char *name, uint32_t fw_base);
 
-extern int 
+extern int
 avng_phy_laneswap_set(int unit, uint8_t port);
 
-extern int 
+extern int
 avng_phy_external_mode_get(int unit, int lport);
 
-extern int 
+extern int
 avng_phy_ability_set(int unit, uint8_t port, char *name, int ability);
 
 extern int soc_phy_probe(void);

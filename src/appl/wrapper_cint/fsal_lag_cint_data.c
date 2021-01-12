@@ -189,7 +189,6 @@ static cint_enum_map_t __cint_enum_map__cbx_lag_mode_t[] =
 {
     { "cbxLagModeNormal", cbxLagModeNormal },
     { "cbxLagModeCascade", cbxLagModeCascade },
-    { "cbxLagModeShared", cbxLagModeShared },
     CINT_ENTRY_LAST
 };
 static cint_enum_map_t __cint_enum_map__cbx_lag_reseed_mode_t[] =

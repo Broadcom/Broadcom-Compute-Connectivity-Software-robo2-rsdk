@@ -619,6 +619,82 @@ int cbxi_slicid_init(int unit, cbxi_slicid_t slicid)
         ent_fpslict.li_map1_decap = 0;
 #endif
         break;
+    case SLICID_PE_CS_IN_ECID_U0_P0:
+    case SLICID_PE_CS_IN_ECID_U0_P1:
+    case SLICID_PE_CS_IN_ECID_U0_P2:
+    case SLICID_PE_CS_IN_ECID_U0_P3:
+    case SLICID_PE_CS_IN_ECID_U0_P4:
+    case SLICID_PE_CS_IN_ECID_U0_P5:
+    case SLICID_PE_CS_IN_ECID_U0_P6:
+    case SLICID_PE_CS_IN_ECID_U0_P7:
+    case SLICID_PE_CS_IN_ECID_U0_P8:
+    case SLICID_PE_CS_IN_ECID_U0_P9:
+    case SLICID_PE_CS_IN_ECID_U0_P10:
+    case SLICID_PE_CS_IN_ECID_U0_P11:
+    case SLICID_PE_CS_IN_ECID_U0_P12:
+    case SLICID_PE_CS_IN_ECID_U0_P13:
+    case SLICID_PE_CS_IN_ECID_U0_P14:
+    case SLICID_PE_CS_IN_ECID_U0_P15:
+    case SLICID_PE_CS_IN_ECID_U1_P0:
+    case SLICID_PE_CS_IN_ECID_U1_P1:
+    case SLICID_PE_CS_IN_ECID_U1_P2:
+    case SLICID_PE_CS_IN_ECID_U1_P3:
+    case SLICID_PE_CS_IN_ECID_U1_P4:
+    case SLICID_PE_CS_IN_ECID_U1_P5:
+    case SLICID_PE_CS_IN_ECID_U1_P6:
+    case SLICID_PE_CS_IN_ECID_U1_P7:
+    case SLICID_PE_CS_IN_ECID_U1_P8:
+    case SLICID_PE_CS_IN_ECID_U1_P9:
+    case SLICID_PE_CS_IN_ECID_U1_P10:
+    case SLICID_PE_CS_IN_ECID_U1_P11:
+    case SLICID_PE_CS_IN_ECID_U1_P12:
+    case SLICID_PE_CS_IN_ECID_U1_P13:
+    case SLICID_PE_CS_IN_ECID_U1_P14:
+    case SLICID_PE_CS_IN_ECID_U1_P15:
+    case SLICID_PE_CS_IN_ECID_LAG0:
+    case SLICID_PE_CS_IN_ECID_LAG1:
+    case SLICID_PE_CS_IN_ECID_LAG2:
+    case SLICID_PE_CS_IN_ECID_LAG3:
+    case SLICID_PE_CS_IN_ECID_LAG4:
+    case SLICID_PE_CS_IN_ECID_LAG5:
+    case SLICID_PE_CS_IN_ECID_LAG6:
+    case SLICID_PE_CS_IN_ECID_LAG7:
+    case SLICID_PE_CS_IN_ECID_LAG8:
+    case SLICID_PE_CS_IN_ECID_LAG9:
+    case SLICID_PE_CS_IN_ECID_LAG10:
+    case SLICID_PE_CS_IN_ECID_LAG11:
+    case SLICID_PE_CS_IN_ECID_LAG12:
+    case SLICID_PE_CS_IN_ECID_LAG13:
+    case SLICID_PE_CS_IN_ECID_LAG14:
+    case SLICID_PE_CS_IN_ECID_LAG15:
+    case SLICID_PE_CS_IN_ECID_LAG16:
+    case SLICID_PE_CS_IN_ECID_LAG17:
+    case SLICID_PE_CS_IN_ECID_LAG18:
+    case SLICID_PE_CS_IN_ECID_LAG19:
+    case SLICID_PE_CS_IN_ECID_LAG20:
+    case SLICID_PE_CS_IN_ECID_LAG21:
+    case SLICID_PE_CS_IN_ECID_LAG22:
+    case SLICID_PE_CS_IN_ECID_LAG23:
+    case SLICID_PE_CS_IN_ECID_LAG24:
+    case SLICID_PE_CS_IN_ECID_LAG25:
+    case SLICID_PE_CS_IN_ECID_LAG26:
+    case SLICID_PE_CS_IN_ECID_LAG27:
+    case SLICID_PE_CS_IN_ECID_LAG28:
+    case SLICID_PE_CS_IN_ECID_LAG29:
+    case SLICID_PE_CS_IN_ECID_LAG30:
+    case SLICID_PE_CS_IN_ECID_LAG31:
+        ent_fpslict.dst_key   = 4;  /* FID_GRP_ECID */
+        /* FIXME: */
+        /* Access PE : Set rules on Uplink port and Decap ETAG
+         * Transit PE: Set rules on Loopback port P14 and Decap ETAG*/
+        ent_fpslict.slic_decap = HDT_ETAG_DECAP;
+        /* default_sli is set in PE module */
+        break;
+    case SLICID_PE_CS_ETAG_DECAP:
+        ent_fpslict.slic_decap = HDT_ETAG_DECAP;
+        ent_fpslict.dst_key   = 4;  /* FID_GRP_ECID */
+        /* default_sli is set in PE module */
+        break;
     case SLICID_PE_IN_ECID_U0_P0:
     case SLICID_PE_IN_ECID_U0_P1:
     case SLICID_PE_IN_ECID_U0_P2:
@@ -699,13 +775,14 @@ int cbxi_slicid_init(int unit, cbxi_slicid_t slicid)
         break;
     case SLICID_PE_FWD_DWNSTR_MC:
         ent_fpslict.dst_key   = 4;  /* FID_GRP_ECID */
+        ent_fpslict.slic_decap = HDT_ETAG_DECAP;
         /* FIXME: */
         /* Access PE : Set rule on Uplink port and Decap ETAG
          * Transit PE: Set rule on Uplink port and no Decap ETAG*/
 /*        ent_fpslict.slic_decap = HDT_ETAG_DECAP;*/
         /* default_sli is set in PE module */
         break;
-    case SLICID_PE_ETAG_DECAP_LB:
+    case SLICID_PE_ETAG_DECAP_CFP:
         ent_fpslict.slic_decap = HDT_ETAG_DECAP;
         ent_fpslict.dst_key   = 4;  /* FID_GRP_ECID */
         /* default_sli is set in PE module
@@ -853,18 +930,20 @@ int cbxi_default_rule_init(int unit, cbxi_slic_rule_id_t rule_idx)
 
     switch (rule_idx) {
     case SLIC_CSD_DEV1_DROP:
-         if (unit) {
-             /* TPID = CBXI_NT_CP2SW; TCI0 */
-             slic_rule.tpid0 = USER_TPID7;
-             slic_rule.tci_valid = (1 << ROBO2_SLIC_TCI0_SHIFT);
-             slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI0_SHIFT);
-             slic_rule.tci0      = 0x0080; /* Match DEVID 1 */
-             slic_rule.tci0_mask = 0x0080;
-             slic_rule.mask_flags |= ROBO2_SLIC_MASK_TCI;
-             slic_rule.mask_flags |= ROBO2_SLIC_MASK_TPID0;
+         /* TPID = CBXI_NT_CP2SW; TCI0 */
+         slic_rule.tpid0 = USER_TPID7;
+         slic_rule.tci_valid = (1 << ROBO2_SLIC_TCI0_SHIFT);
+         slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI0_SHIFT);
+         slic_rule.tci0      = 0x0080; /* Match DEVID 1 */
+         slic_rule.tci0_mask = 0x0080;
+         slic_rule.mask_flags |= ROBO2_SLIC_MASK_TCI;
+         slic_rule.mask_flags |= ROBO2_SLIC_MASK_TPID0;
 
+         if (unit) {
              slicid = SLICID_DEFAULT;
              slic_trap = SLIC_TRAP_GROUP3; /* Drop */
+         } else {
+             slicid = SLICID_DEFAULT; /* Allow on unit 1 CSD port */
          }
          /* Disable this rule on both Avengers at init
           * Enable it only on Secondary while adding cascade port */
@@ -872,16 +951,19 @@ int cbxi_default_rule_init(int unit, cbxi_slic_rule_id_t rule_idx)
          slic_rule.mask_flags |= ROBO2_SLIC_MASK_PGMAP;
          break;
     case SLIC_CSD_DEV0_FWD:
+         /* TPID = CBXI_NT_CP2SW; TCI0 */
+         slic_rule.tpid0 = USER_TPID7;
+         slic_rule.tci_valid = (1 << ROBO2_SLIC_TCI0_SHIFT);
+         slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI0_SHIFT);
+         slic_rule.tci0      = 0x0000; /* Match DEVID 0 */
+         slic_rule.tci0_mask = 0x0080;
+         slic_rule.mask_flags |= ROBO2_SLIC_MASK_TCI;
+         slic_rule.mask_flags |= ROBO2_SLIC_MASK_TPID0;
          if (unit) {
-             /* TPID = CBXI_NT_CP2SW; TCI0 */
-             slic_rule.tpid0 = USER_TPID7;
-             slic_rule.tci_valid = (1 << ROBO2_SLIC_TCI0_SHIFT);
-             slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI0_SHIFT);
-             slic_rule.tci0      = 0x0000; /* Match DEVID 0 */
-             slic_rule.tci0_mask = 0x0080;
-             slic_rule.mask_flags |= ROBO2_SLIC_MASK_TCI;
-             slic_rule.mask_flags |= ROBO2_SLIC_MASK_TPID0;
              slicid = SLICID_DEFAULT;
+         } else {
+             slicid = SLICID_DEFAULT;
+             slic_trap = SLIC_TRAP_GROUP3; /* Drop in unit 0 */
          }
          /* Disable this rule on both Avengers at init
           * Enable it only on Secondary while adding cascade port */
@@ -1291,75 +1373,13 @@ int cbxi_default_rule_init(int unit, cbxi_slic_rule_id_t rule_idx)
         slic_rule.tpid0  = TPID_ETAG;
         slicid = SLICID_PE_FWD_UPSTR;
         break;
-     case SLIC_PE_1BR_UC_ETAG_U0_P0:
-     case SLIC_PE_1BR_UC_ETAG_U0_P1:
-     case SLIC_PE_1BR_UC_ETAG_U0_P2:
-     case SLIC_PE_1BR_UC_ETAG_U0_P3:
-     case SLIC_PE_1BR_UC_ETAG_U0_P4:
-     case SLIC_PE_1BR_UC_ETAG_U0_P5:
-     case SLIC_PE_1BR_UC_ETAG_U0_P6:
-     case SLIC_PE_1BR_UC_ETAG_U0_P7:
-     case SLIC_PE_1BR_UC_ETAG_U0_P8:
-     case SLIC_PE_1BR_UC_ETAG_U0_P9:
-     case SLIC_PE_1BR_UC_ETAG_U0_P10:
-     case SLIC_PE_1BR_UC_ETAG_U0_P11:
-     case SLIC_PE_1BR_UC_ETAG_U0_P12:
-     case SLIC_PE_1BR_UC_ETAG_U0_P13:
-     case SLIC_PE_1BR_UC_ETAG_U0_P14:
-     case SLIC_PE_1BR_UC_ETAG_U0_P15:
-     case SLIC_PE_1BR_UC_ETAG_U1_P0:
-     case SLIC_PE_1BR_UC_ETAG_U1_P1:
-     case SLIC_PE_1BR_UC_ETAG_U1_P2:
-     case SLIC_PE_1BR_UC_ETAG_U1_P3:
-     case SLIC_PE_1BR_UC_ETAG_U1_P4:
-     case SLIC_PE_1BR_UC_ETAG_U1_P5:
-     case SLIC_PE_1BR_UC_ETAG_U1_P6:
-     case SLIC_PE_1BR_UC_ETAG_U1_P7:
-     case SLIC_PE_1BR_UC_ETAG_U1_P8:
-     case SLIC_PE_1BR_UC_ETAG_U1_P9:
-     case SLIC_PE_1BR_UC_ETAG_U1_P10:
-     case SLIC_PE_1BR_UC_ETAG_U1_P11:
-     case SLIC_PE_1BR_UC_ETAG_U1_P12:
-     case SLIC_PE_1BR_UC_ETAG_U1_P13:
-     case SLIC_PE_1BR_UC_ETAG_U1_P14:
-     case SLIC_PE_1BR_UC_ETAG_U1_P15:
-     case SLIC_PE_1BR_UC_ETAG_LAG0 :
-     case SLIC_PE_1BR_UC_ETAG_LAG1 :
-     case SLIC_PE_1BR_UC_ETAG_LAG2 :
-     case SLIC_PE_1BR_UC_ETAG_LAG3 :
-     case SLIC_PE_1BR_UC_ETAG_LAG4 :
-     case SLIC_PE_1BR_UC_ETAG_LAG5 :
-     case SLIC_PE_1BR_UC_ETAG_LAG6 :
-     case SLIC_PE_1BR_UC_ETAG_LAG7 :
-     case SLIC_PE_1BR_UC_ETAG_LAG8 :
-     case SLIC_PE_1BR_UC_ETAG_LAG9 :
-     case SLIC_PE_1BR_UC_ETAG_LAG10:
-     case SLIC_PE_1BR_UC_ETAG_LAG11:
-     case SLIC_PE_1BR_UC_ETAG_LAG12:
-     case SLIC_PE_1BR_UC_ETAG_LAG13:
-     case SLIC_PE_1BR_UC_ETAG_LAG14:
-     case SLIC_PE_1BR_UC_ETAG_LAG15:
-     case SLIC_PE_1BR_UC_ETAG_LAG16:
-     case SLIC_PE_1BR_UC_ETAG_LAG17:
-     case SLIC_PE_1BR_UC_ETAG_LAG18:
-     case SLIC_PE_1BR_UC_ETAG_LAG19:
-     case SLIC_PE_1BR_UC_ETAG_LAG20:
-     case SLIC_PE_1BR_UC_ETAG_LAG21:
-     case SLIC_PE_1BR_UC_ETAG_LAG22:
-     case SLIC_PE_1BR_UC_ETAG_LAG23:
-     case SLIC_PE_1BR_UC_ETAG_LAG24:
-     case SLIC_PE_1BR_UC_ETAG_LAG25:
-     case SLIC_PE_1BR_UC_ETAG_LAG26:
-     case SLIC_PE_1BR_UC_ETAG_LAG27:
-     case SLIC_PE_1BR_UC_ETAG_LAG28:
-     case SLIC_PE_1BR_UC_ETAG_LAG29:
-     case SLIC_PE_1BR_UC_ETAG_LAG30:
-     case SLIC_PE_1BR_UC_ETAG_LAG31:
+     /* Specific rules on Avenger cascade ports */
+     case SLIC_PE_CS_1BR_UC_ETAG:
         slic_rule.tci_valid  = (1 << ROBO2_SLIC_TCI3_SHIFT);
         slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI3_SHIFT);
-        /* Actual TCI is set while configuring Extender port */
+        /* Check for only UCAST */
         slic_rule.tci3      = 0x0000;
-        slic_rule.tci3_mask = 0x3FFF;
+        slic_rule.tci3_mask = 0x3000;
         slic_rule.tpid0 = TPID_ETAG;
         slic_rule.mask_flags |= (ROBO2_SLIC_MASK_TPID0 | ROBO2_SLIC_MASK_TCI);
 
@@ -1368,7 +1388,138 @@ int cbxi_default_rule_init(int unit, cbxi_slic_rule_id_t rule_idx)
                         ROBO2_SLIC_MASK_TCI | ROBO2_SLIC_MASK_TPID0);
         slic_rule.pg_map = 0;
 
-        slicid = SLICID_PE_ETAG_DECAP_LB; /* Loopback port enabled */
+        slicid = SLICID_PE_CS_ETAG_DECAP; /* Avg Cascade port removed */
+        break;
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P0:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P1:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P2:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P3:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P4:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P5:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P6:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P7:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P8:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P9:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P10:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P11:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P12:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P13:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P14:
+    case SLIC_PE_CS_1BR_IN_ECID_U0_P15:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P0:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P1:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P2:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P3:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P4:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P5:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P6:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P7:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P8:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P9:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P10:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P11:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P12:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P13:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P14:
+    case SLIC_PE_CS_1BR_IN_ECID_U1_P15:
+        slic_rule.tci_valid  = (1 << ROBO2_SLIC_TCI2_SHIFT);
+        slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI2_SHIFT);
+        /* Actual TCI is set while configuring Extender port */
+        slic_rule.tci2      = 0x0000;
+        slic_rule.tci2_mask = 0x0FFF;
+        slic_rule.tpid0 = TPID_ETAG;
+        slic_rule.mask_flags |= (ROBO2_SLIC_MASK_TPID0 | ROBO2_SLIC_MASK_TCI);
+
+        /* TPID0 = ETAG */
+        slic_rule.mask_flags |= (ROBO2_SLIC_MASK_PGMAP |
+                        ROBO2_SLIC_MASK_TCI | ROBO2_SLIC_MASK_TPID0);
+        slic_rule.pg_map = 0;
+
+        slicid = SLICID_PE_CS_IN_ECID_U0_P0 + (rule_idx - SLIC_PE_CS_1BR_IN_ECID_U0_P0);
+        break;
+    case SLIC_PE_CS_1BR_IN_ECID_LAG0 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG1 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG2 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG3 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG4 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG5 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG6 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG7 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG8 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG9 :
+    case SLIC_PE_CS_1BR_IN_ECID_LAG10:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG11:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG12:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG13:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG14:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG15:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG16:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG17:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG18:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG19:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG20:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG21:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG22:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG23:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG24:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG25:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG26:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG27:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG28:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG29:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG30:
+    case SLIC_PE_CS_1BR_IN_ECID_LAG31:
+        slic_rule.tci_valid  = (1 << ROBO2_SLIC_TCI2_SHIFT);
+        slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI2_SHIFT);
+        /* Actual TCI is set while configuring Extender port */
+        slic_rule.tci2      = 0x0000;
+        slic_rule.tci2_mask = 0x0FFF;
+        slic_rule.tpid0 = TPID_ETAG;
+        slic_rule.mask_flags |= (ROBO2_SLIC_MASK_TPID0 | ROBO2_SLIC_MASK_TCI);
+
+        /* TPID0 = ETAG */
+        slic_rule.mask_flags |= (ROBO2_SLIC_MASK_PGMAP |
+                        ROBO2_SLIC_MASK_TCI | ROBO2_SLIC_MASK_TPID0);
+        slic_rule.pg_map = 0;
+
+        slicid = SLICID_PE_CS_IN_ECID_U0_P0 + (rule_idx - SLIC_PE_CS_1BR_IN_ECID_U0_P0);
+/*        slic_trap = SLIC_TRAP_GROUP3;*/ /* Drop */
+        break;
+
+    case SLIC_PE_CS_1BR_DECAP:
+        /* TPID0 = ETAG; HDT = decap ETAG */
+        slic_rule.mask_flags = (ROBO2_SLIC_MASK_PGMAP |
+                                                ROBO2_SLIC_MASK_TPID0);
+        slic_rule.pg_map = 0;
+        slic_rule.tpid0  = TPID_ETAG;
+        slicid = SLICID_PE_CS_ETAG_DECAP;
+        break;
+    case SLIC_PE_CS_DROP:
+        slic_rule.mask_flags |= ROBO2_SLIC_MASK_PGMAP;
+
+        slic_rule.pg_map = 0x0;
+        slic_trap = SLIC_TRAP_GROUP3; /* Drop */
+        slicid = SLICID_DEFAULT;
+        break;
+     /* generic rules on Uplink port */
+     case SLIC_PE_1BR_UC_ETAG:
+        slic_rule.tci_valid  = (1 << ROBO2_SLIC_TCI3_SHIFT);
+        slic_rule.tci_valid_mask = (1 << ROBO2_SLIC_TCI3_SHIFT);
+        /* Check for only UCAST */
+        slic_rule.tci3      = 0x0000;
+        slic_rule.tci3_mask = 0x3000;
+        slic_rule.tpid0 = TPID_ETAG;
+        slic_rule.mask_flags |= (ROBO2_SLIC_MASK_TPID0 | ROBO2_SLIC_MASK_TCI);
+
+        /* TPID0 = ETAG */
+        slic_rule.mask_flags |= (ROBO2_SLIC_MASK_PGMAP |
+                        ROBO2_SLIC_MASK_TCI | ROBO2_SLIC_MASK_TPID0);
+        slic_rule.pg_map = 0;
+
+        slicid = SLICID_PE_ETAG_DECAP_CFP; /* Avg Cascade port included */
+#if 0 /* Use CFP to duplicate packets in case of LAG across Avengers */
+        slic_trap = SLIC_TRAP_GROUP6; /* Trap to CSD without CB tag */
+#endif
         break;
     case SLIC_PE_1BR_IN_ECID_U0_P0:
     case SLIC_PE_1BR_IN_ECID_U0_P1:
@@ -1416,7 +1567,6 @@ int cbxi_default_rule_init(int unit, cbxi_slic_rule_id_t rule_idx)
         slic_rule.pg_map = 0;
 
         slicid = SLICID_PE_IN_ECID_U0_P0 + (rule_idx - SLIC_PE_1BR_IN_ECID_U0_P0);
-/*        slic_trap = SLIC_TRAP_GROUP3; *//* Drop */
         break;
     case SLIC_PE_1BR_IN_ECID_LAG0 :
     case SLIC_PE_1BR_IN_ECID_LAG1 :
@@ -1464,7 +1614,6 @@ int cbxi_default_rule_init(int unit, cbxi_slic_rule_id_t rule_idx)
         slic_rule.pg_map = 0;
 
         slicid = SLICID_PE_IN_ECID_U0_P0 + (rule_idx - SLIC_PE_1BR_IN_ECID_U0_P0);
-/*        slic_trap = SLIC_TRAP_GROUP3;*/ /* Drop */
         break;
     case SLIC_PE_1BR_DECAP:
         /* TPID0 = ETAG; HDT = decap ETAG */
@@ -1485,7 +1634,7 @@ int cbxi_default_rule_init(int unit, cbxi_slic_rule_id_t rule_idx)
                                 ROBO2_SLIC_MASK_TPID0 | ROBO2_SLIC_MASK_TCI);
 
         slic_rule.pg_map = 0;
-        slicid = SLICID_PE_FWD_DWNSTR_UC;
+        slicid = SLICID_PE_ETAG_DECAP;
         break;
     case SLIC_PE_1BR_FWD_DWNSTR_MC:
         /* TPID0 = ETAG; HDT = decap ETAG */

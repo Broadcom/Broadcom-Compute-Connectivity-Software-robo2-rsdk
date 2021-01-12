@@ -17,10 +17,10 @@
 #include <sal_types.h>
 #include <fsal_int/imp.h>
 
-/* 1 => Use DTCM based buffers
- * 0 => Use SRAM based buffers, dynamically allocated
+/* define => Use DTCM based buffers
+ * undef  => Use SRAM based buffers, dynamically allocated
  */
-#define CONFIG_STATIC_PKTBUF      1
+#define CONFIG_STATIC_PKTBUF
 
 #define CBXI_PKT_RX 0
 #define CBXI_PKT_TX 1
@@ -51,11 +51,18 @@
  */
 __attribute__((aligned(32)))
 typedef struct cbxi_pkt_s {
-    struct cbxi_pkt_s *next;       /* Chain */
-    struct cbxi_pkt_s *prev;
-    uint32            total_len;   /* Total num of bytes in case of chain */
-    uint16            num_bytes;   /* Number of bytes in packet */
-    uint16            flags;       /* Flags */
+    union {
+        struct {
+            struct cbxi_pkt_s *next;       /* Chain */
+            uint32            total_len;   /* Total num of bytes in case of chain */
+            uint16            num_bytes;   /* Number of bytes in packet */
+            uint16            flags;       /* Flags */
+        };
+#ifndef CONFIG_STATIC_PKTBUF
+        uint8             _align[32];      /* Align start (and actual end) of pktbuffer[] to a D-cache boundary */
+#endif
+    };
+
     uint8             pktbuffer[0];
 } cbxi_pkt_t;
 

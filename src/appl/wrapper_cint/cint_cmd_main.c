@@ -32,6 +32,8 @@ extern cint_data_t fsal_port_cint_data;
 #ifdef CONFIG_TIMESYNC
 /* fsal_ts_cint_data.c */
 extern cint_data_t fsal_ts_cint_data;
+#endif
+#ifdef CONFIG_PTP
 extern cint_data_t fsal_ptp_cint_data;
 #endif
 

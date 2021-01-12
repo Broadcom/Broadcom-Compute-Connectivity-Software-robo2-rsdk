@@ -96,6 +96,9 @@ typedef enum cbx_cfp_key_type_e {
 
     /** UDF ACL */
     cbxCfpKeyUDFACL,
+
+    /*  ETAG CFP */
+    cbxCfpKeyEtagACL,
 } cbx_cfp_key_type_t;
 
 
@@ -237,6 +240,7 @@ typedef struct cbx_cfp_params_t {
 #define CBX_CFP_IPV6_ATTR_MAX          23  /**< IPv6 key with addr as 2 64 bits attributes */
 #define CBX_CFP_L2_IPV4_ATTR_MAX       23  /**< L2 and IPv4 Key */
 #define CBX_CFP_UDF_ATTR_MAX           18  /**< UDF Key */
+#define CBX_CFP_ETAG_ATTR_MAX           5  /**< ETAG Key */
 /** @} */
 
 /** @{
@@ -310,6 +314,15 @@ typedef enum cbx_cfp_count_mode_e {
     cbxCFPCountPacketsByProfile      /**< count packets in and out of profile */
 } cbx_cfp_count_mode_t;
 
+/**
+ * CFP Stat enumerations
+ */
+typedef enum cbx_cfp_stat_e {
+    cbxCFPStatBytes,
+    cbxCFPStatPackets,
+    cbxCFPStatPacketsInProfile,
+    cbxCFPStatPacketsOutProfile
+} cbx_cfp_stat_t;
 
 /**
  * CFP Forward Mode enumerations
@@ -365,6 +378,9 @@ typedef enum cbx_cfp_rule_attribute_e {
     cbxCfpRuleAttrDestIp6,                /**< IPv6 Destination IP -128bits  F10 + F12 */
     cbxCfpRuleAttrDestIp6High,            /**< IPv6 Destination IP - MS 64 bits F10 */
     cbxCfpRuleAttrDestIp6Low,             /**< IPv6 Destination IP - LS 64 bits F12 */
+    cbxCfpRuleAttrEtagICID,               /**< ETAG Ingress ECID value F21 */
+    cbxCfpRuleAttrEtagECID,               /**< ETAG ECID value F22 */
+    cbxCfpRuleAttrEtagGRP,                /**< ETAG GRP bits F23 */
     cbxCfpRuleAttrUDF0,                   /**< UDF0 - F24 - 64 bits starting from the end of SMAC */
     cbxCfpRuleAttrUDF1,                   /**< UDF1 - F25 - 64 bits from the end of UDF0 */
     cbxCfpRuleAttrUDF2,                   /**< UDF2 - F26 - 32 bits from the end of UDF1  */
@@ -582,6 +598,48 @@ void cbx_cfp_rule_dump ( cbx_cfpid_t  *cfpid,
 
 void cbx_cfp_action_dump ( cbx_cfpid_t  *cfpid,
                            uint32_t      index);
+
+/**
+ * CFP Stat Multi Get
+ * This routine is used to get the statistics of a given rule idx
+ *
+ * @param cfpid     (IN)  CFP Identifier
+ * @param index     (IN)  Rule Index
+ * @param nstat     (IN)  Number of statistics to be retrieved
+ * @param stat_arr  (IN)  Type of statistics to be retrieved
+ * @param value_arr (OUT) Statictics value
+ *
+ * @return return code
+ * @retval CBX_E_NONE Success
+ * @retval CBX_E_XXXX Failure
+ */
+int
+cbx_cfp_stat_multi_get(cbx_cfpid_t  *cfpid,
+                    uint32_t      index,
+                    int nstat,
+                    cbx_cfp_stat_t *stat_arr,
+                    uint64 *value_arr);
+
+/**
+ * CFP Stat Multi Set
+ * This routine is used to set the statistics of a given rule idx
+ *
+ * @param cfpid     (IN)  CFP Identifier
+ * @param index     (IN)  Rule Index
+ * @param nstat     (IN)  Number of statistics to be set
+ * @param stat_arr  (IN)  Type of statistics to be set
+ * @param value_arr (OUT) Statictics value
+ *
+ * @return return code
+ * @retval CBX_E_NONE Success
+ * @retval CBX_E_XXXX Failure
+ */
+int
+cbx_cfp_stat_multi_set(cbx_cfpid_t  *cfpid,
+                    uint32_t      index,
+                    int nstat,
+                    cbx_cfp_stat_t *stat_arr,
+                    uint64 *value_arr);
 
 
 

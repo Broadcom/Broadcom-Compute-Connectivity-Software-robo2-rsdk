@@ -51,4 +51,7 @@ typedef struct cbx_ls_cntl_s {
 } cbx_ls_cntl_t;
 
 int cbxi_robo2_link_get(int unit, cbx_port_t port, int *link);
+
+int cbxi_link_scan_wakeup(void);
+
 #endif /* !CBX_INT_LINK_H  */

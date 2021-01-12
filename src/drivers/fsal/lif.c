@@ -730,6 +730,7 @@ int cbx_vlan_lif_create ( cbx_vlan_lif_params_t *vlan_lif_params,
     cbx_port_t  port;
     cbxi_pgid_t lpgid;
     int         unit = 0;
+    uint32_t    status = 0;
 
     CHECK_LIF_INIT(lif_info);
 
@@ -819,12 +820,24 @@ int cbx_vlan_lif_create ( cbx_vlan_lif_params_t *vlan_lif_params,
 
     CBX_EPP_INSERT_EOR(&encap_record);
 
-    /* LIN encap should be set on both Avengers irrespective of
-     * ETM_CASCADE_PORT_ENABLE register value. If LIN encap is not set on both
-     * Avengers, then encap for LAG with member ports across Avengers will not
-     * work properly */
-    CBX_IF_ERROR_RETURN(cbxi_lin_encap_set(vlan_lif_params->portid,
-                                linid, 0, &encap_record, CBXI_ENCAP_AVG_SYS));
+    /* The behavior depends on CB_ETM_Cascade_Port_Enable reg value.
+     * If Cascade port is set in the above reg, then put same encap directive in
+     * both Avengers, otherwise configure DLIET of only one Avenger
+     */
+
+    REG_READ_CB_ETM_CASCADE_PORT_ENABLEr(unit, &status);
+    if (SOC_IS_CASCADED(CBX_AVENGER_PRIMARY) && (status == 0)) {
+        if (unit) {
+            CBX_IF_ERROR_RETURN(cbxi_lin_encap_set(vlan_lif_params->portid,
+                        linid, 0, &encap_record, CBXI_ENCAP_AVG_SEC));
+        } else {
+            CBX_IF_ERROR_RETURN(cbxi_lin_encap_set(vlan_lif_params->portid,
+                        linid, 0, &encap_record, CBXI_ENCAP_AVG_PRI));
+        }
+    } else {
+        CBX_IF_ERROR_RETURN(cbxi_lin_encap_set(vlan_lif_params->portid,
+                        linid, 0, &encap_record, CBXI_ENCAP_AVG_SYS));
+    }
 
     /* Set LIN destination */
     CBX_IF_ERROR_RETURN(cbxi_lif_dest_set(vlan_lif_params->portid, linid));

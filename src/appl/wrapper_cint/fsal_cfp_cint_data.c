@@ -87,6 +87,32 @@ CINT_FWRAPPER_CREATE_VP2(cbx_cfp_action_dump,
                          uint32_t, uint32_t,
                          index, 0, 0);
 
+CINT_FWRAPPER_CREATE_RP5(int, int, 0, 0,
+                         cbx_cfp_stat_multi_get,
+                         cbx_cfpid_t*, cbx_cfpid_t,
+                         cfpid, 1, 0,
+                         uint32_t, uint32_t,
+                         index, 0, 0,
+                         int, int,
+                         nstat, 0, 0,
+                         cbx_cfp_stat_t*, cbx_cfp_stat_t,
+                         stat_arr, 1, 0,
+                         uint64*, uint64,
+                         value_arr, 1, 0);
+
+CINT_FWRAPPER_CREATE_RP5(int, int, 0, 0,
+                         cbx_cfp_stat_multi_set,
+                         cbx_cfpid_t*, cbx_cfpid_t,
+                         cfpid, 1, 0,
+                         uint32_t, uint32_t,
+                         index, 0, 0,
+                         int, int,
+                         nstat, 0, 0,
+                         cbx_cfp_stat_t*, cbx_cfp_stat_t,
+                         stat_arr, 1, 0,
+                         uint64*, uint64,
+                         value_arr, 1, 0);
+
 
 static void*
 __cint_maddr__cbx_cfp_params_t(void* p, int mnum, cint_struct_type_t* parent)
@@ -468,6 +494,15 @@ static cint_enum_map_t __cint_enum_map__cbx_cfp_count_mode_t[] =
     CINT_ENTRY_LAST
 };
 
+static cint_enum_map_t __cint_enum_map__cbx_cfp_stat_t[] =
+{
+    { "cbxCFPStatBytes", cbxCFPStatBytes },
+    { "cbxCFPStatPackets", cbxCFPStatPackets },
+    { "cbxCFPStatPacketsInProfile", cbxCFPStatPacketsInProfile },
+    { "cbxCFPStatPacketsOutProfile", cbxCFPStatPacketsOutProfile },
+    CINT_ENTRY_LAST
+};
+
 static cint_enum_map_t __cint_enum_map__cbx_cfp_key_type_t[] =
 {
     { "cbxCfpKeyL2EthernetACL", cbxCfpKeyL2EthernetACL },
@@ -491,6 +526,7 @@ static cint_enum_type_t __cint_fsal_cfp_enums[] =
     { "cbx_cfp_stage_t", __cint_enum_map__cbx_cfp_stage_t },
     { "cbx_cfp_key_type_t", __cint_enum_map__cbx_cfp_key_type_t },
     { "cbx_cfp_count_mode_t", __cint_enum_map__cbx_cfp_count_mode_t },
+    { "cbx_cfp_stat_t", __cint_enum_map__cbx_cfp_stat_t },
     { "cbx_cfp_forward_mode_t",
 	   __cint_enum_map__cbx_cfp_forward_mode_t },
     { "cbx_cfp_rule_attribute_t", __cint_enum_map__cbx_cfp_rule_attribute_t },
@@ -592,6 +628,8 @@ static cint_function_t __cint_fsal_cfp_functions[] =
         CINT_FWRAPPER_ENTRY(cbx_cfp_action_clear),
         CINT_FWRAPPER_ENTRY(cbx_cfp_rule_dump),
         CINT_FWRAPPER_ENTRY(cbx_cfp_action_dump),
+        CINT_FWRAPPER_ENTRY(cbx_cfp_stat_multi_get),
+        CINT_FWRAPPER_ENTRY(cbx_cfp_stat_multi_set),
         CINT_ENTRY_LAST
     };
 

@@ -113,6 +113,7 @@ typedef enum cbx_port_type_e {
     cbxPortTypeExtender,
     cbxPortTypeExtenderCascade,
     cbxPortTypeExtenderUpstream,
+    cbxPortTypePortVLAN,
     cbxPortTypeMax,   /**<  Max value -  not to be used */
     cbxPortTypeInvalid = 0xffffffff  /**< Added for CINT workaround - value - not to be used */
 } cbx_port_type_t;

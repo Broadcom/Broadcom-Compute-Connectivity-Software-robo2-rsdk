@@ -22,7 +22,6 @@
 #ifdef CONFIG_PORT_EXTENDER
 #include <fsal_int/extender.h>
 #endif
-#include <fsal_int/mcast.h>
 #include <fsal_int/stg.h>
 #include <fsal_int/cfp.h>
 
@@ -30,6 +29,9 @@
  * One lag control entry for each SOC device containing lag book keeping
  * info for that device.
  */
+#ifdef LAG_DEBUG_VERBOSE
+extern int dump_table(soc_robo2_table_id_t tid, int idx, int len);
+#endif
 
 static cbx_lag_cntl_t    cbx_robo2_lag_control;
 static cbx_port_t        lpgt[CBX_MAX_UNITS][CBX_MAX_PORT_PER_UNIT];
@@ -690,8 +692,7 @@ cbxi_robo2_lag_link_cascade_svt_update( pbmp_t in_lpbmp,
         for ( index = 0; index <= max_index;) {
 
             if((unit == CBX_AVENGER_SECONDARY) &&
-               ((lag_mode == cbxLagModeNormal) ||
-                   (lag_mode == cbxLagModeShared)) &&
+               (lag_mode == cbxLagModeNormal) &&
                (CBX_PBMP_NOT_NULL(in_csd_pbmp[unit])) &&
                (CBX_PBMP_NOT_NULL(rpbmp))) {
 
@@ -739,8 +740,7 @@ cbxi_robo2_lag_link_cascade_svt_update( pbmp_t in_lpbmp,
             }
 
             if((unit == CBX_AVENGER_PRIMARY) &&
-              ((lag_mode == cbxLagModeNormal) ||
-                   (lag_mode == cbxLagModeShared)) &&
+              (lag_mode == cbxLagModeNormal) &&
                (CBX_PBMP_NOT_NULL(in_csd_pbmp[unit])) &&
                (CBX_PBMP_NOT_NULL(rpbmp))) {
 
@@ -871,450 +871,6 @@ cbxi_robo2_lag_member_check( cbx_portid_t portid, cbx_portid_t *lagid )
     return CBX_E_NOT_FOUND;
 }
 
-#ifdef CONFIG_PORT_EXTENDER
-/*
- * Function:
- *  cbxi_shared_lag_member_add
- * Purpose:
- *   Add port to shared LAG interface membership.
- *
- */
-STATIC int
-cbxi_shared_lag_member_add ( cbx_lag_info_t *lag_info,
-                         cbx_port_t port_out,
-                         int unit )
-{
-    ipp_pp2lpg_t ent_pp2lpg;
-    lpg2pg_t     ent_lpg2pg;
-    pg2lpg_t     ent_pg2lpg;
-    int          port_lpg, lag_lpg;
-    int          port_gpg;
-#ifdef CONFIG_CASCADED_MODE
-    cbx_port_t   csd_port;
-    cbx_portid_t lagid;
-#endif
-    uint32_t     status = 0;
-
-    CBX_IF_ERROR_RETURN(soc_robo2_ipp_pp2lpg_get(unit, port_out, &ent_pp2lpg));
-    port_lpg = ent_pp2lpg.pgid;
-
-    CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_get(unit, port_lpg, &ent_lpg2pg));
-    port_gpg = ent_lpg2pg.pg;
-
-#if 1 /* FIXME: Static allocation of GPGs */
-    port_gpg = (port_lpg + (unit) * (CBX_MAX_PORT_PER_UNIT));
-#endif
-
-    if (lag_info->active[unit] == 0) {
-        if(lag_info->port_one == CBXI_PGID_INVALID) {
-            lag_info->port_one = ( (unit) * (CBX_MAX_PORT_PER_UNIT)) + port_out;
-            lag_info->gpgid = port_gpg;
-        }
-
-        if(unit == CBX_AVENGER_PRIMARY ) {
-            lag_info->lpgid = port_lpg;
-            lag_lpg = lag_info->lpgid;
-        } else {
-            lag_info->rlpgid = port_lpg;
-            lag_lpg = lag_info->rlpgid;
-        }
-
-        /* Update LAG LIN destination */
-        CBX_IF_ERROR_RETURN(cbxi_pe_lag_dest_set(lag_info));
-
-    } else {
-        if(unit == CBX_AVENGER_PRIMARY ) {
-            lag_lpg = lag_info->lpgid;
-        } else {
-            lag_lpg = lag_info->rlpgid;
-        }
-    }
-
-    /* Add port as lag member */
-    CBX_PBMP_PORT_ADD(lag_info->lag_pbmp[unit], port_out);
-    lag_info->active[unit]++;
-
-    /***************  Disable interfaces before update ************************/
-    CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(
-                unit, CBX_STG_DEFAULT, port_lpg, cbxStgStpStateDiscard));
-    if (lag_info->lpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_PRIMARY,
-                CBX_STG_DEFAULT, lag_info->lpgid, cbxStgStpStateDiscard));
-    }
-    if (lag_info->rlpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_SECONDARY,
-                CBX_STG_DEFAULT, lag_info->rlpgid, cbxStgStpStateDiscard));
-    }
-    /**************************************************************************/
-
-
-    /* Ingress ECID filtering fails if PQM_PP2LPG is not mapped to same LPG */
-    if(unit == CBX_AVENGER_PRIMARY ) {
-        CBX_IF_ERROR_RETURN(cbxi_robo2_pqm_pp2lpg_update(
-                                        unit, lag_info->lpgid, port_out));
-    } else {
-        CBX_IF_ERROR_RETURN(cbxi_robo2_pqm_pp2lpg_update(
-                                        unit, lag_info->rlpgid, port_out));
-    }
-
-    /* Configure appropriate LPG2PG and PG2LPG mappings */
-    if (lag_info->lpgid != CBXI_PGID_INVALID) {
-        ent_lpg2pg.pg = lag_info->gpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_set(CBX_AVENGER_PRIMARY,
-                                        lag_info->lpgid, &ent_lpg2pg, &status));
-
-        ent_pg2lpg.lpg = lag_info->lpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_pg2lpg_set(CBX_AVENGER_PRIMARY,
-                                        lag_info->gpgid, &ent_pg2lpg, &status));
-
-    }
-#ifdef CONFIG_CASCADED_MODE
-    if ((SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) &&
-                        (lag_info->rlpgid != CBXI_PGID_INVALID)) {
-        ent_lpg2pg.pg = lag_info->gpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_set(CBX_AVENGER_SECONDARY,
-                                        lag_info->rlpgid, &ent_lpg2pg, &status));
-
-        ent_pg2lpg.lpg = lag_info->rlpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_pg2lpg_set(CBX_AVENGER_SECONDARY,
-                                        lag_info->gpgid, &ent_pg2lpg, &status));
-
-    }
-#endif
-
-    /* Update SVT */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lag_svt_update(unit, lag_info->lag_pbmp[unit],
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-
-    /* Remove LAG port from original PG2PPFOV */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(unit, port_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-    /* Remove LAG port from original SPGPPBMP config */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_spg2ppconfig_update(unit, port_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-
-    /* Add LAG port to LAG PG2PPFOV */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(unit, lag_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-    /* Add LAG port to LAG SPGPPBMP config */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_spg2ppconfig_update(unit, lag_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-
-#ifdef CONFIG_CASCADED_MODE
-    /* Update SVT info with Cascade port if necessary */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lag_cascade_svt_update(lag_info));
-
-    if(CBX_PBMP_NOT_NULL(lag_info->lag_pbmp[CBXI_CASC_PARTNER_UNIT(unit)])) {
-        /* Add Cascade ports to PPFOV */
-        CBX_PBMP_ITER(PBMP_CASCADE(CBX_AVENGER_PRIMARY), csd_port) {
-            CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(CBX_AVENGER_PRIMARY,
-                    lag_info->lpgid, csd_port, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-        }
-        CBX_PBMP_ITER(PBMP_CASCADE(CBX_AVENGER_SECONDARY), csd_port) {
-            CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(CBX_AVENGER_SECONDARY,
-                    lag_info->rlpgid, csd_port, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-        }
-
-    }
-
-    /* If valid, configure both lpgid and rlpgid in all member MCAST groups */
-    if ((lag_info->active[unit] == 1) &&
-            (lag_info->active[CBXI_CASC_PARTNER_UNIT(unit)] > 0)) {
-        CBX_PORTID_TRUNK_SET(lagid, lag_info->lagid);
-        CBX_IF_ERROR_RETURN(cbxi_mcast_pe_shared_lag_update(lagid, lagid));
-    }
-
-#endif /* CONFIG_CASCADED_MODE */
-
-    /***************  Enable interfaces after update ************************/
-    CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(
-            unit, CBX_STG_DEFAULT, port_lpg, cbxStgStpStateForward));
-    if (lag_info->lpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_PRIMARY,
-                CBX_STG_DEFAULT, lag_info->lpgid, cbxStgStpStateForward));
-    }
-    if (lag_info->rlpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_SECONDARY,
-                CBX_STG_DEFAULT, lag_info->rlpgid, cbxStgStpStateForward));
-    }
-    /**************************************************************************/
-
-
-    if (lag_info->lag_params.lag_mode == cbxLagModeShared) {
-        CBX_IF_ERROR_RETURN(cbxi_pe_shared_lag_port_set(
-                                        unit, lag_info->lagid, port_out, TRUE));
-    }
-
-
-    return CBX_E_NONE;
-}
-
-
-/*
- * Function:
- *  cbxi_shared_lag_member_remove
- * Purpose:
- *   Remove port from shared LAG interface membership.
- *
- */
-STATIC int
-cbxi_shared_lag_member_remove ( cbx_lag_info_t *lag_info,
-                         cbx_port_t port_out,
-                         int unit )
-{
-    cbx_portid_t lagid;
-    ipp_pp2lpg_t ent_pp2lpg;
-    lpg2pg_t     ent_lpg2pg;
-    pg2lpg_t     ent_pg2lpg;
-    int          port_lpg, lag_lpg, port_lpg_new;
-    int          port_gpg;
-    int          new_port;
-#ifdef CONFIG_CASCADED_MODE
-    cbx_port_t   csd_port;
-#endif
-    uint32_t     status = 0;
-
-    CBX_IF_ERROR_RETURN(soc_robo2_ipp_pp2lpg_get(unit, port_out, &ent_pp2lpg));
-    port_lpg = ent_pp2lpg.pgid;
-    port_lpg_new = port_lpg;
-
-    CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_get(unit, port_lpg, &ent_lpg2pg));
-    port_gpg = ent_lpg2pg.pg;
-
-#if 1 /* FIXME: Static allocation of GPGs */
-    port_gpg = (port_lpg + (unit) * (CBX_MAX_PORT_PER_UNIT));
-#endif
-
-    lag_info->active[unit]--;
-
-    /***************  Disable interfaces before update ************************/
-    CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(
-            unit, CBX_STG_DEFAULT, port_lpg, cbxStgStpStateDiscard));
-    if (lag_info->lpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_PRIMARY,
-                CBX_STG_DEFAULT, lag_info->lpgid, cbxStgStpStateDiscard));
-    }
-    if (lag_info->rlpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_SECONDARY,
-                CBX_STG_DEFAULT, lag_info->rlpgid, cbxStgStpStateDiscard));
-    }
-    /**************************************************************************/
-
-
-    /* Update SVT */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lag_svt_update(unit, lag_info->lag_pbmp[unit],
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-
-    /* Remove deleted port from LAG pbmp */
-    CBX_PBMP_PORT_REMOVE(lag_info->lag_pbmp[unit], port_out);
-
-    if (unit == CBX_AVENGER_PRIMARY) {
-        lag_lpg = lag_info->lpgid;
-    } else {
-        lag_lpg = lag_info->rlpgid;
-    }
-
-    /* Remove LAG port to LAG PG2PPFOV */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(unit, lag_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-    /* Remove LAG port to LAG SPGPPBMP config */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_spg2ppconfig_update(unit, lag_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-
-    /* Remove all LAG ports from original port LPG2PPFOV */
-    CBX_PBMP_ITER(lag_info->lag_pbmp[unit], new_port) {
-        CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(unit, port_lpg,
-                                    new_port, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-        CBX_IF_ERROR_RETURN(cbxi_robo2_spg2ppconfig_update(unit, port_lpg,
-                                    port_out, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-    }
-
-    /* Add LAG port to original PG2PPFOV */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(unit, port_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-    /* Add LAG port to original SPGPPBMP config */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_spg2ppconfig_update(unit, port_lpg,
-                                port_out, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-#ifdef CONFIG_CASCADED_MODE
-    CBX_PBMP_ITER(PBMP_CASCADE(unit), csd_port) {
-        /* Remove Cascade port from Port LPG2PPFOV */
-        CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(unit, port_lpg,
-                                 csd_port, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-    }
-#endif
-
-    /* Map PQM_PP2LPG back to original LPG */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_pqm_pp2lpg_update(
-                                        unit, port_lpg, port_out));
-
-
-    CBX_PORTID_TRUNK_SET(lagid, lag_info->lagid);
-
-    if (lag_info->active[unit] == 0) {
-#ifdef CONFIG_CASCADED_MODE
-        CBX_PBMP_ITER(PBMP_CASCADE(CBX_AVENGER_PRIMARY), csd_port) {
-        /* Remove Cascade port from Port LPG2PPFOV */
-            CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(CBX_AVENGER_PRIMARY,
-                lag_info->lpgid, csd_port, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-        }
-        CBX_PBMP_ITER(PBMP_CASCADE(CBX_AVENGER_SECONDARY), csd_port) {
-        /* Remove Cascade port from Port LPG2PPFOV */
-            CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(CBX_AVENGER_SECONDARY,
-                lag_info->rlpgid, csd_port, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE));
-        }
-
-#endif
-
-        if(unit == CBX_AVENGER_PRIMARY) {
-            lag_info->lpgid  = CBXI_PGID_INVALID;
-            lag_info->gpgid  = CBXI_PGID_INVALID;
-        } else {
-            lag_info->rlpgid  = CBXI_PGID_INVALID;
-            lag_info->rgpgid  = CBXI_PGID_INVALID;
-        }
-
-        /* Restore LPG2PG and PG2LPG mapping */
-        ent_lpg2pg.pg = port_gpg;
-        CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_set(
-                                unit, port_lpg, &ent_lpg2pg, &status));
-
-        ent_pg2lpg.lpg = port_lpg;
-        CBX_IF_ERROR_RETURN(soc_robo2_pg2lpg_set(unit,
-                                        port_gpg, &ent_pg2lpg, &status));
-
-        /* Update LAG LIN destination */
-        CBX_IF_ERROR_RETURN(cbxi_pe_lag_dest_set(lag_info));
-
-#ifdef CONFIG_CASCADED_MODE
-        if (lag_info->active[CBXI_CASC_PARTNER_UNIT(unit)] != 0) {
-            /* Update Shared LAG info on all member MCAST groups if there are
-             * members in partner Avenger*/
-            CBX_IF_ERROR_RETURN(cbxi_mcast_pe_shared_lag_update(
-                                lagid, CBXI_GLOBAL_PORT(port_out, unit)));
-        } else {
-            /* Just remove the port from MCAST groups,
-             * Don't add any LAG back (CBX_LAG_INVALID) */
-            CBX_IF_ERROR_RETURN(cbxi_mcast_pe_shared_lag_update(
-                            CBX_LAG_INVALID, CBXI_GLOBAL_PORT(port_out, unit)));
-
-            lag_info->port_one = CBXI_PGID_INVALID;
-        }
-#endif /* CONFIG_CASCADED_MODE */
-    } else if (lag_lpg == port_lpg) {
-        /* Change LAG lpgid to next member in LAG */
-        CBX_PBMP_ITER(lag_info->lag_pbmp[unit], new_port) {
-            CBX_IF_ERROR_RETURN(soc_robo2_ipp_pp2lpg_get(
-                                        unit, new_port, &ent_pp2lpg));
-            port_lpg_new = ent_pp2lpg.pgid;
-
-            CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_get(
-                                        unit, port_lpg_new, &ent_lpg2pg));
-            port_gpg = ent_lpg2pg.pg;
-
-#if 1 /* FIXME: Static allocation of GPGs */
-            port_gpg = (port_lpg_new + (unit) * (CBX_MAX_PORT_PER_UNIT));
-#endif
-
-            lag_info->gpgid = port_gpg;
-            if(unit == CBX_AVENGER_PRIMARY ) {
-                lag_info->lpgid = port_lpg_new;
-                lag_lpg = lag_info->lpgid;
-            } else {
-                lag_info->rlpgid = port_lpg_new;
-                lag_lpg = lag_info->rlpgid;
-            }
-            /***********  Disable interface before update ********************/
-            CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(
-                unit, CBX_STG_DEFAULT, port_lpg_new, cbxStgStpStateDiscard));
-            /******************************************************************/
-
-            /* Update LAG LIN destination */
-            CBX_IF_ERROR_RETURN(cbxi_pe_lag_dest_set(lag_info));
-
-            /* Update Shared LAG info on all member MCAST groups */
-            CBX_IF_ERROR_RETURN(cbxi_mcast_pe_shared_lag_update(
-                                lagid, CBXI_GLOBAL_PORT(port_out, unit)));
-            break;
-        }
-
-        /* Add all ports to LPG2PPFOV */
-        CBX_PBMP_ITER(lag_info->lag_pbmp[unit], new_port) {
-            CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(unit, port_lpg_new,
-                                    new_port, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-            CBX_IF_ERROR_RETURN(cbxi_robo2_spg2ppconfig_update(unit, port_lpg_new,
-                                    port_out, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-        }
-
-    /* Configure appropriate LPG2PG and PG2LPG mappings */
-    if (lag_info->lpgid != CBXI_PGID_INVALID) {
-        ent_lpg2pg.pg = lag_info->gpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_set(CBX_AVENGER_PRIMARY,
-                                        lag_info->lpgid, &ent_lpg2pg, &status));
-
-        ent_pg2lpg.lpg = lag_info->lpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_pg2lpg_set(CBX_AVENGER_PRIMARY,
-                                        lag_info->gpgid, &ent_pg2lpg, &status));
-
-    }
-#ifdef CONFIG_CASCADED_MODE
-    if ((SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) &&
-                        (lag_info->rlpgid != CBXI_PGID_INVALID)) {
-        ent_lpg2pg.pg = lag_info->gpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_set(CBX_AVENGER_SECONDARY,
-                                        lag_info->rlpgid, &ent_lpg2pg, &status));
-
-        ent_pg2lpg.lpg = lag_info->rlpgid;
-        CBX_IF_ERROR_RETURN(soc_robo2_pg2lpg_set(CBX_AVENGER_SECONDARY,
-                                        lag_info->gpgid, &ent_pg2lpg, &status));
-
-    }
-#endif
-
-
-#ifdef CONFIG_CASCADED_MODE
-        if(CBX_PBMP_NOT_NULL(lag_info->lag_pbmp[CBXI_CASC_PARTNER_UNIT(unit)])) {
-            /* Add Cascade ports to PPFOV */
-            CBX_PBMP_ITER(PBMP_CASCADE(unit), csd_port) {
-                CBX_IF_ERROR_RETURN(cbxi_robo2_lpg2ppfov_update(
-                    unit, lag_lpg, csd_port, CBXI_LAG_PORT_TABLE_ENTRY_ADD));
-            }
-        }
-#endif /* CONFIG_CASCADED_MODE */
-    }
-
-
-#ifdef CONFIG_CASCADED_MODE
-    /* Update SVT info with Cascade port if necessary */
-    CBX_IF_ERROR_RETURN(cbxi_robo2_lag_cascade_svt_update(lag_info));
-#endif /* CONFIG_CASCADED_MODE */
-
-    /***************  Enable interfaces after update ************************/
-    CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(
-            unit, CBX_STG_DEFAULT, port_lpg, cbxStgStpStateForward));
-    CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(
-            unit, CBX_STG_DEFAULT, port_lpg_new, cbxStgStpStateForward));
-
-    if (lag_info->lpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_PRIMARY,
-                CBX_STG_DEFAULT, lag_info->lpgid, cbxStgStpStateForward));
-    }
-    if (lag_info->rlpgid != CBXI_PGID_INVALID) {
-        CBX_IF_ERROR_RETURN(cbxi_stg_port_state_set(CBX_AVENGER_SECONDARY,
-                CBX_STG_DEFAULT, lag_info->rlpgid, cbxStgStpStateForward));
-    }
-    /**************************************************************************/
-
-
-
-    if (lag_info->lag_params.lag_mode == cbxLagModeShared) {
-        CBX_IF_ERROR_RETURN(cbxi_pe_shared_lag_port_set(
-                                    unit, lag_info->lagid, port_out, FALSE));
-    }
-
-    return CBX_E_NONE;
-}
-#endif /* CONFIG_PORT_EXTENDER */
-
 /*
  * Function:
  *  cbxi_robo2_lag_member_remove
@@ -1333,10 +889,14 @@ cbxi_lag_member_remove ( cbx_lag_info_t *lag_info,
     cbxi_pgid_t    gpgid = CBXI_PGID_INVALID;
     cbxi_pgid_t    tlpgid;
 #ifdef CONFIG_CASCADED_MODE
-    int            tunit;
+    int            tunit = 0;
     cbx_port_t     csd_port;
     cbxi_pgid_t    csd_lpgid = CBXI_PGID_INVALID;
     lpg2pg_t       oldlpg2pg_entry;
+#endif
+#ifdef CONFIG_PORT_EXTENDER
+    pgt_t          ent_pgt;
+    uint32_t       status = 0;
 #endif
 
     flag = CBXI_LAG_PORT_TABLE_ENTRY_REMOVE;
@@ -1359,13 +919,6 @@ cbxi_lag_member_remove ( cbx_lag_info_t *lag_info,
                not member of lag id=%d.  \n"),lag_info->lagid));
         return CBX_E_PARAM;
     }
-
-#ifdef CONFIG_PORT_EXTENDER
-    if (lag_info->lag_params.lag_mode == cbxLagModeShared) {
-        CBX_IF_ERROR_RETURN(cbxi_shared_lag_member_remove(lag_info, port_out, unit));
-        return CBX_E_NONE;
-    }
-#endif
 
     lag_info->active[unit]--;
 
@@ -1392,35 +945,26 @@ cbxi_lag_member_remove ( cbx_lag_info_t *lag_info,
             lpgid = lag_info->lpgid;
 #ifdef CONFIG_CASCADED_MODE
             tunit = CBX_AVENGER_SECONDARY;
-            if(lag_info->lgpgid != CBXI_PGID_INVALID) {
-                gpgid = lag_info->lgpgid;
-            }
-#else
-            gpgid = lag_info->gpgid;
 #endif /* CONFIG_CASCADED_MODE */
         } else {
             lpgid = lag_info->rlpgid;
 #ifdef CONFIG_CASCADED_MODE
             tunit = CBX_AVENGER_PRIMARY;
-            if(lag_info->rgpgid != CBXI_PGID_INVALID) {
-                gpgid = lag_info->rgpgid;
-            }
-#else
-            gpgid = lag_info->gpgid;
 #endif /* CONFIG_CASCADED_MODE */
         }
+        gpgid = lag_info->gpgid;
 
 #ifdef CONFIG_CASCADED_MODE
-    if (lag_info->active[tunit] != 0) {
-        /* Get PGID to allocate for the deleted port */
-        rv = cbxi_robo2_lpg2pg_slot_get(unit, &gpgid);
-        if (CBX_FAILURE(rv)) {
-            LOG_ERROR(BSL_LS_FSAL_LAG,
-                   (BSL_META("FSAL API : cbxi_lag_memmber_remove()..Failed to \
+        if (lag_info->active[tunit] != 0) {
+            /* Get PGID to allocate for the deleted port */
+            rv = cbxi_robo2_lpg2pg_slot_get(unit, &gpgid);
+            if (CBX_FAILURE(rv)) {
+                LOG_ERROR(BSL_LS_FSAL_LAG,
+                       (BSL_META("FSAL API : cbxi_lag_memmber_remove()..Failed to \
                                  find free PGID slot \n")));
-            return rv;
+                return rv;
+            }
         }
-    }
 #endif /* CONFIG_CASCADED_MODE */
     }
 
@@ -1494,6 +1038,19 @@ cbxi_lag_member_remove ( cbx_lag_info_t *lag_info,
             return rv;
         }
     }
+    /* This PG is getting used in the given unit,so change the PG2LPG
+     * mapping in other unit to cascade port for this PG */
+
+    /* Get cascade port lpg */
+    CBX_IF_ERROR_RETURN(cbxi_robo2_cascade_port_lpg_get( tunit, &csd_lpgid));
+    /* Update PG2LPGID to cascade port */
+    rv = cbxi_robo2_pg2lpg_update(tunit, gpgid, csd_lpgid);
+    if (CBX_FAILURE(rv)) {
+        LOG_ERROR(BSL_LS_FSAL_LAG,
+                  (BSL_META("FSAL API: cbxi_lag_member_remove()..Failed to \
+                             update PG2LPGID entry with cascade LPG \n")));
+        return rv;
+    }
 #endif /* CONFIG_CASCADED_MODE */
 
     /* Update LPG2PGID */
@@ -1554,6 +1111,14 @@ cbxi_lag_member_remove ( cbx_lag_info_t *lag_info,
                              restore PGT for deleted port \n")));
         return rv;
     }
+#ifdef CONFIG_PORT_EXTENDER
+    /* Reset default SLI to avoid any packet processing until port params are
+     * set properly */
+    CBX_IF_ERROR_RETURN(soc_robo2_pgt_get(unit, lpgid, &ent_pgt));
+    ent_pgt.default_slicid = 0;
+    ent_pgt.default_sli    = (ent_pgt.default_sli & 0x3F000) | 0x1;
+    CBX_IF_ERROR_RETURN(soc_robo2_pgt_set(unit, lpgid, &ent_pgt, &status));
+#endif
     /* Remove deleted port from LAG pbmp */
     CBX_PBMP_PORT_REMOVE(lag_info->lag_pbmp[unit], port_out);
 
@@ -1571,22 +1136,32 @@ cbxi_lag_member_remove ( cbx_lag_info_t *lag_info,
 
     LOG_INFO(BSL_LS_FSAL_LAG,
              (BSL_META("FSAL API : cbxi_lag_member_remove()..LAG id =%d \
-                       portid=%d, lpgid=%d, gpgid=%d \n"),
+              portid=%d, lpgid=%d, gpgid=%d \n"),
               lag_info->lagid, port_out,
               lpgid, gpgid));
-    /* Debug routines */
-    cbxi_lag_info_dump ();
-    cbxi_lag_member_table_dump (port_out, lpgid);
 
     if (lag_info->active[unit] == 0) {
         if(unit == CBX_AVENGER_PRIMARY) {
             lag_info->lpgid  = CBXI_PGID_INVALID;
-            lag_info->gpgid  = CBXI_PGID_INVALID;
+            if (lag_info->active[CBX_AVENGER_SECONDARY] == 0){
+                lag_info->gpgid  = CBXI_PGID_INVALID;
+                lag_info->lgpgid = CBXI_PGID_INVALID;
+                lag_info->rgpgid  = CBXI_PGID_INVALID;
+                lag_info->port_one  = CBXI_PGID_INVALID;
+            }
         } else {
             lag_info->rlpgid  = CBXI_PGID_INVALID;
-            lag_info->rgpgid  = CBXI_PGID_INVALID;
+            if (lag_info->active[CBX_AVENGER_PRIMARY] == 0){
+                lag_info->gpgid  = CBXI_PGID_INVALID;
+                lag_info->rgpgid  = CBXI_PGID_INVALID;
+                lag_info->lgpgid = CBXI_PGID_INVALID;
+                lag_info->port_one  = CBXI_PGID_INVALID;
+            }
         }
     }
+    /* Debug routines */
+    cbxi_lag_info_dump ();
+    cbxi_lag_member_table_dump (port_out, lpgid);
 
 #ifdef CONFIG_PORT_EXTENDER
     /* Update LAG LIN destination */
@@ -1715,7 +1290,6 @@ void cbxi_lag_info_dump ( )
 {
 #ifdef LAG_DEBUG_VERBOSE
     int  i=0;
-    int  unit = CBX_AVENGER_PRIMARY;
     cbx_lag_info_t  *lag_info;
 
     /* Locate first entry */
@@ -1746,10 +1320,9 @@ void cbxi_lag_member_table_dump ( cbx_port_t  port, int lpgid )
 #ifdef LAG_DEBUG_VERBOSE
     int  unit = CBX_AVENGER_PRIMARY;
     lpg2pg_t       lpg2pg_entry;
-    int rv =0;
 
     /* Read entry from LPG2PG */
-    rv = soc_robo2_lpg2pg_get(unit, lpgid, &lpg2pg_entry);
+    soc_robo2_lpg2pg_get(unit, lpgid, &lpg2pg_entry);
 
     sal_printf("Port =%d, LPG = 0x%x GPG = 0x%x \n",
                port, lpgid, lpg2pg_entry.pg);
@@ -2214,6 +1787,7 @@ cbx_lag_init(void)
         /* Initialize default global PSC Flags */
         /* Add fields F4-DMAC F5-SMAC F6-OUTER_VID for key=1 */
         LAG_CNTL.psc[cbxPacketOther].pkt_type = cbxPacketOther;
+#ifndef CONFIG_PORT_EXTENDER
         LAG_CNTL.psc[cbxPacketOther].flags = (CBX_LAG_PSC_SRCMAC |
                                               CBX_LAG_PSC_DSTMAC |
                                               CBX_LAG_PSC_SPG |
@@ -2227,6 +1801,18 @@ cbx_lag_init(void)
                           CBX_LAG_IKFT_FIELD_ID_SRCMAC);
         CBX_PBMP_PORT_ADD(LAG_CNTL.pscfld_pbmp[cbxPacketOther],
                           CBX_LAG_IKFT_FIELD_ID_OUTER_TCI);
+#else
+        /* Use only SRCMAC and DSTMAC for PSC so that same LBH
+         * index is obtained for a given packet irrespective of
+         * ingress port*/
+        LAG_CNTL.psc[cbxPacketOther].flags = (CBX_LAG_PSC_SRCMAC |
+                                              CBX_LAG_PSC_DSTMAC);
+
+        CBX_PBMP_PORT_ADD(LAG_CNTL.pscfld_pbmp[cbxPacketOther],
+                          CBX_LAG_IKFT_FIELD_ID_DSTMAC);
+        CBX_PBMP_PORT_ADD(LAG_CNTL.pscfld_pbmp[cbxPacketOther],
+                          CBX_LAG_IKFT_FIELD_ID_SRCMAC);
+#endif
 
         for (unit=0; unit < num_units; unit++) {
             /* coverity[overrun-local] */
@@ -2321,7 +1907,7 @@ cbx_lag_init(void)
          * correspond to, as Load balancing is done on all types of traffic */
         for (unit=0; unit < num_units; unit++) {
             max_index = soc_robo2_fpslict_max_index(unit);
-            for(i = 1; i < max_index; i++) {
+            for(i = 1; i <= max_index; i++) {
                 CBX_IF_ERROR_RETURN(cbxi_lag_fpslict_table_update(unit, i));
             }
         }
@@ -2386,12 +1972,6 @@ int cbx_lag_create ( cbx_lag_params_t*lag_params,
         }
         lag_info++;
     }
-
-#ifdef CONFIG_PORT_EXTENDER
-    if (lag_info->lag_params.lag_mode == cbxLagModeShared) {
-        CBX_IF_ERROR_RETURN(cbxi_pe_shared_lag_set(*lagid, TRUE));
-    }
-#endif
 
     return rv;
 }
@@ -2466,14 +2046,6 @@ int cbx_lag_destroy ( cbx_portid_t lagid )
             }
         }
     }
-#ifdef CONFIG_PORT_EXTENDER
-    if (lag_info->lag_params.lag_mode == cbxLagModeShared) {
-        /* Update LAG LIN destination */
-        CBX_IF_ERROR_RETURN(cbxi_pe_lag_dest_set(lag_info));
-
-        CBX_IF_ERROR_RETURN(cbxi_pe_shared_lag_set(lagid, FALSE));
-    }
-#endif
 
     /* Clear lag info parameters */
     lag_info->lagid = CBX_LAG_INVALID;
@@ -2588,13 +2160,6 @@ int cbx_lag_member_add ( cbx_portid_t lagid, cbx_portid_t portid )
         return CBX_E_PARAM;
     }
 
-#ifdef CONFIG_PORT_EXTENDER
-    if (lag_info->lag_params.lag_mode == cbxLagModeShared) {
-        CBX_IF_ERROR_RETURN(cbxi_shared_lag_member_add(lag_info, port_out, unit));
-        return CBX_E_NONE;
-    }
-#endif
-
     /* Save port PGT properties, use PGID returned for the port
      * from cbxi_robo2_port_validate()
      */
@@ -2607,7 +2172,17 @@ int cbx_lag_member_add ( cbx_portid_t lagid, cbx_portid_t portid )
     cbxi_lag_info_dump ();
     cbxi_lag_member_table_dump (port_out, port_lpg);
 
-    if (lag_info->active[unit] == 0) {
+    /*
+     *  In cascaded mode, allocate the gpgid once, based on whichever unit port
+     *  comesup first. If the port for which gpgid allocated is removed from LAG,
+     *  gpg id wont get removed, instead it will be used till the LAG is destroyed.
+     */
+    if (((lag_info->active[unit] == 0) &&
+        (lag_info->port_one == CBXI_PGID_INVALID)) ||
+        ((lag_info->active[unit] == 0) && (unit == CBX_AVENGER_PRIMARY) &&
+        (lag_info->port_one > CBX_MAX_PORT_PER_UNIT)) ||
+        ((lag_info->active[unit] == 0) && (unit == CBX_AVENGER_SECONDARY) &&
+        (lag_info->port_one < CBX_MAX_PORT_PER_UNIT))) {
 
         if(lag_info->port_one == CBXI_PGID_INVALID) {
             lag_info->port_one = ( (unit) * (CBX_MAX_PORT_PER_UNIT)) + port_out;
@@ -2626,12 +2201,10 @@ int cbx_lag_member_add ( cbx_portid_t lagid, cbx_portid_t portid )
             lpgupdt_flag = TRUE;
         }
 
-        if (lag_info->lag_params.lag_mode != cbxLagModeShared) {
-            /* Temporary fix to bypass SLICTCAM */
-            CBX_IF_ERROR_RETURN(soc_robo2_pgt_get(unit, lpgid, &ent_pgt));
-            ent_pgt.default_slicid = 250;
-            CBX_IF_ERROR_RETURN(soc_robo2_pgt_set(unit, lpgid, &ent_pgt, &status));
-        }
+        /* Temporary fix to bypass SLICTCAM */
+        CBX_IF_ERROR_RETURN(soc_robo2_pgt_get(unit, lpgid, &ent_pgt));
+        ent_pgt.default_slicid = 250;
+        CBX_IF_ERROR_RETURN(soc_robo2_pgt_set(unit, lpgid, &ent_pgt, &status));
         /* Read entry from LPG2PG */
         CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_get(unit, lpgid, &lpg2pg_entry));
 
@@ -2675,7 +2248,19 @@ int cbx_lag_member_add ( cbx_portid_t lagid, cbx_portid_t portid )
             }
             lpgid = lag_info->rlpgid;
         }
+#ifdef CONFIG_CASCADED_MODE
+        /* If the lpg update is true, it is using previously allocated
+         * pg id (GPG) for the given unit, so free the current pgt entry */
+        if (lpgupdt_flag) {
+            sal_memset(&lpg2pg_entry, 0, sizeof(lpg2pg_t));
 
+            /* Get PG corresponding to the port_lpg */
+            CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_get(unit, port_lpg,
+                                &lpg2pg_entry));
+
+            pgt[lpg2pg_entry.pg] = FALSE;
+        }
+#endif
         /* Add port as lag member */
         CBX_PBMP_PORT_ADD(lag_info->lag_pbmp[unit], port_out);
     }
@@ -2709,24 +2294,22 @@ int cbx_lag_member_add ( cbx_portid_t lagid, cbx_portid_t portid )
 #endif /* CONFIG_CASCADED_MODE */
 
 
-    if (lag_info->lag_params.lag_mode != cbxLagModeShared) {
-        /* Allocate PG for this port - PG is same as LPGID  */
-        rv = cbxi_robo2_ipp_pp2lpg_update(unit, lpgid, port_out);
-        if (CBX_FAILURE(rv)) {
-            LOG_ERROR(BSL_LS_FSAL_LAG,
-                      (BSL_META("FSAL API : cbx_lag_member_add()..Failed to update \
-                                  PP2LPG entry \n")));
-            return rv;
-        }
+    /* Allocate PG for this port - PG is same as LPGID  */
+    rv = cbxi_robo2_ipp_pp2lpg_update(unit, lpgid, port_out);
+    if (CBX_FAILURE(rv)) {
+        LOG_ERROR(BSL_LS_FSAL_LAG,
+                  (BSL_META("FSAL API : cbx_lag_member_add()..Failed to update \
+                              PP2LPG entry \n")));
+        return rv;
+    }
 
-        /* Update PP2PGID */
-        rv = cbxi_robo2_pqm_pp2lpg_update(unit, lpgid, port_out);
-        if (CBX_FAILURE(rv)) {
-            LOG_ERROR(BSL_LS_FSAL_LAG,
-                      (BSL_META("FSAL API : cbx_lag_member_add()..Failed to update \
-                                  PP2PGID entry \n")));
-            return rv;
-        }
+    /* Update PP2PGID */
+    rv = cbxi_robo2_pqm_pp2lpg_update(unit, lpgid, port_out);
+    if (CBX_FAILURE(rv)) {
+        LOG_ERROR(BSL_LS_FSAL_LAG,
+                  (BSL_META("FSAL API : cbx_lag_member_add()..Failed to update \
+                              PP2PGID entry \n")));
+        return rv;
     }
 
     /* Update SPGPPBMP config */
@@ -2800,32 +2383,18 @@ int cbx_lag_member_add ( cbx_portid_t lagid, cbx_portid_t portid )
                                  update PG2LPGID entry \n")));
             return rv;
         }
-#ifdef CONFIG_CASCADED_MODE
-            if((lag_info->lgpgid != CBXI_PGID_INVALID) &&
-              ( lag_info->lgpgid != lag_info->gpgid)) {
-                /* Free lgpgid */
-                pgt[lag_info->lgpgid] = FALSE;
-            }
-            if((lag_info->rgpgid != CBXI_PGID_INVALID) &&
-              ( lag_info->rgpgid != lag_info->gpgid)) {
-                /* Free rgpgid */
-                pgt[lag_info->rgpgid] = FALSE;
-            }
-#endif /* CONFIG_CASCADED_MODE */
     } else {
         /* Mark lpgt entry as free slot */
 
-        if (lag_info->lag_params.lag_mode != cbxLagModeShared) {
-            lpgt[unit][port_lpg] = FALSE;
+        lpgt[unit][port_lpg] = FALSE;
 
-            sal_memset(&lpg2pg_entry, 0, sizeof(lpg2pg_t));
+        sal_memset(&lpg2pg_entry, 0, sizeof(lpg2pg_t));
 
-            /* Get PG corresponding to the port_lpg */
-            CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_get(unit, port_lpg,
-                                &lpg2pg_entry));
+        /* Get PG corresponding to the port_lpg */
+        CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_get(unit, port_lpg,
+                            &lpg2pg_entry));
 
-            pgt[lpg2pg_entry.pg] = FALSE;
-        }
+        pgt[lpg2pg_entry.pg] = FALSE;
         /* Remove LAG port from original PG2PPFOV */
         rv = cbxi_robo2_lpg2ppfov_update(
                  unit, port_lpg, port_out, CBXI_LAG_PORT_TABLE_ENTRY_REMOVE);
@@ -2849,6 +2418,22 @@ int cbx_lag_member_add ( cbx_portid_t lagid, cbx_portid_t portid )
 #ifdef CONFIG_PORT_EXTENDER
     /* Update LAG LIN destination */
     CBX_IF_ERROR_RETURN(cbxi_pe_lag_dest_set(lag_info));
+    /* Update sw_do_not_edit fields */
+    CBX_IF_ERROR_RETURN(cbxi_pe_lag_pbmp_update(lag_info));
+#ifdef CONFIG_CASCADED_MODE
+/* Configure CFP rule in case of LAG */
+    if ((lag_info->lpgid == CBXI_PGID_INVALID) ||
+        (lag_info->rlpgid == CBXI_PGID_INVALID)) {
+        /* Set action just to forward packet */
+        CBX_IF_ERROR_RETURN(cbxi_pe_cfp_action_set(lagid, FALSE));
+    } else {
+        /* Set action to forward and trap packet to Avenger CSD port in case of
+         * LAG member across Avengers*/
+        CBX_IF_ERROR_RETURN(cbxi_pe_cfp_action_set(lagid, TRUE));
+    }
+
+#endif /* CONFIG_CASCADED_MODE */
+
 #endif
 
     LOG_INFO(BSL_LS_FSAL_LAG,
@@ -2923,10 +2508,22 @@ int cbx_lag_member_remove ( cbx_portid_t lagid, cbx_portid_t portid )
     rv = cbxi_lag_member_remove (lag_info, port_out, unit);
 
 #ifdef CONFIG_PORT_EXTENDER
-    if (lag_info->lag_params.lag_mode == cbxLagModeShared) {
-        CBX_IF_ERROR_RETURN(cbxi_pe_shared_lag_port_set(unit, lag_out, port_out, FALSE));
+    /* Update sw_do_not_edit fields */
+    CBX_IF_ERROR_RETURN(cbxi_pe_lag_pbmp_update(lag_info));
+
+#ifdef CONFIG_CASCADED_MODE
+/* Configure CFP rule in case of LAG */
+    if ((lag_info->lpgid == CBXI_PGID_INVALID) ||
+        (lag_info->rlpgid == CBXI_PGID_INVALID)) {
+        /* Set action just to forward packet */
+        CBX_IF_ERROR_RETURN(cbxi_pe_cfp_action_set(lagid, FALSE));
+    } else {
+        /* Set action to forward and trap packet to Avenger CSD port in case of
+         * LAG member across Avengers*/
+        CBX_IF_ERROR_RETURN(cbxi_pe_cfp_action_set(lagid, TRUE));
     }
-#endif
+#endif /* CONFIG_CASCADED_MODE */
+#endif /* CONFIG_PORT_EXTENDER */
 
 
     return rv;

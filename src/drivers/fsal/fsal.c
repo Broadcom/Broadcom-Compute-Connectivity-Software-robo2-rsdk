@@ -98,6 +98,8 @@ int avg_port_create(void)
     uint8_t port_num, casc_port[2][2] = {{255, 255}, {255, 255}};
 #endif
     portdb_t portdb[CBX_MAX_UNITS * (CBX_MAX_PORT_PER_UNIT + CBX_MAX_LAG_PER_UNIT)];
+    uint32 regval = 0;
+    uint32 fval = 0;
 
 
     sal_memset(portdb, 0, (CBX_MAX_UNITS * (CBX_MAX_PORT_PER_UNIT + CBX_MAX_LAG_PER_UNIT))*
@@ -136,6 +138,16 @@ int avg_port_create(void)
             }
         }
 #endif
+
+        /* Use the PM core clock when ports 12 and 13 are disabled */
+        if (!(PBMP_XL_ALL(unit) & CBX_PORT_PBMP_10G_PORTS)) {
+            REG_READ_CRU_CRU_QSGMII_PM_CONTROL_REGISTERr(unit, &regval);
+            fval = 2;
+            soc_CRU_CRU_QSGMII_PM_CONTROL_REGISTERr_field_set(unit, &regval,
+                                                         PM_TSC_CLK_MUX_SELECTf, &fval);
+            REG_WRITE_CRU_CRU_QSGMII_PM_CONTROL_REGISTERr(unit, &regval);
+        }
+
         CBX_PBMP_ITER(PBMP_ALL(unit), pp) {
             port = pp + (unit * CBX_MAX_PORT_PER_UNIT);
             cbx_port_params_t_init(&port_params);
@@ -653,14 +665,11 @@ void cfp_bcast_rule_add(cbx_cfpid_t cfpid, uint32 index) {
     sal_free(rule.attr_selector);
 }
 
-
-
-void cfp_action_add(cbx_cfpid_t cfpid) {
-    int rv = 0;
+void cfp_dhcp_action_add(cbx_cfpid_t cfpid) {
+    int i = 0, rv = 0, max_index;
 
     cbx_cfp_action_t action;
     cbx_cfp_action_t_init(&action);
-    int i  = 0;
 
     action.flags = CBX_CFP_ACTION_IN_POLICY_UPDATE_PRI |
                    CBX_CFP_ACTION_OUT_POLICY_UPDATE_PRI;
@@ -671,7 +680,13 @@ void cfp_action_add(cbx_cfpid_t cfpid) {
     action.in_policy_action.trapid = CBX_CFP_ACTION_TRAP_TO_CPU_AND_FORWARD;
     action.out_policy_action.forward_mode = cbxCFPForwardNoChange;
     action.out_policy_action.trapid = CBX_CFP_ACTION_TRAP_TO_CPU_AND_FORWARD;
-    for (i = 0; i < 12; i++) {
+
+    if (SOC_DRIVER(0)->type == SOC_CHIP_BCM53158_A0) {
+        max_index = 12;
+    } else {
+        max_index = 4;
+    }
+    for (i = 0; i < max_index; i++) {
         rv = cbx_cfp_action_set(&cfpid, &action, i);
         if (rv !=0) {
             return;
@@ -683,203 +698,285 @@ void cfp_action_add(cbx_cfpid_t cfpid) {
 void cfp_udf_dhcp_rule_add(cbx_cfpid_t cfpid, uint32 index) {
     cbx_cfp_rule_t rule;
     int rv = 0; int i  = 0;
-    rule.key_type = cbxCfpKeyUDFACL;
-    rule.attr_selector = sal_alloc((CBX_CFP_UDF_ATTR_MAX * sizeof(cbx_cfp_rule_attr_selector_t)), "CFP_RULE");
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        rule.attr_selector[i].attr_val = sal_alloc(16,"CFP_RULE");
-        rule.attr_selector[i].attr_mask = sal_alloc(16,"CFP_RULE");
-        sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
-        sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
+
+    if (SOC_DRIVER(0)->type == SOC_CHIP_BCM53158_A0) {
+        rule.key_type = cbxCfpKeyUDFACL;
+        rule.attr_selector = sal_alloc(
+                  (CBX_CFP_UDF_ATTR_MAX * sizeof(cbx_cfp_rule_attr_selector_t)),
+                  "CFP_RULE");
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            rule.attr_selector[i].attr_val = sal_alloc(16,"CFP_RULE");
+            rule.attr_selector[i].attr_mask = sal_alloc(16,"CFP_RULE");
+            sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
+            sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
+        }
+        rule.num_attributes = 3;
+        rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
+        rule.attr_selector[0].attr_val[7] = 0x08;
+        rule.attr_selector[0].attr_len = 8;
+        rule.attr_selector[0].attr_mask[7] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
+        rule.attr_selector[1].attr_val[4] = 0x11;
+        rule.attr_selector[1].attr_len = 8;
+        rule.attr_selector[1].attr_mask[4] = 0xFF;
+        rule.attr_selector[2].attr = cbxCfpRuleAttrUDF3;
+        rule.attr_selector[2].attr_val[0] = 67;
+        rule.attr_selector[2].attr_val[2] = 68;
+        rule.attr_selector[2].attr_len = 4;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+        rule.attr_selector[2].attr_mask[2] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        index = index + 2;
+        rule.attr_selector[2].attr_val[0] = 68;
+        rule.attr_selector[2].attr_val[2] = 67;
+        rule.attr_selector[2].attr_len = 4;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+        rule.attr_selector[2].attr_mask[2] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        /* Ctag */
+        index = index + 2;
+        rule.num_attributes = 4;
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
+            sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
+        }
+        rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
+        rule.attr_selector[0].attr_val[3] = 0x08;
+        rule.attr_selector[0].attr_len = 8;
+        rule.attr_selector[0].attr_mask[3] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
+        rule.attr_selector[1].attr_val[0] = 0x11;
+        rule.attr_selector[1].attr_len = 8;
+        rule.attr_selector[1].attr_mask[0] = 0xFF;
+        rule.attr_selector[2].attr = cbxCfpRuleAttrUDF4;
+        rule.attr_selector[2].attr_val[0] = 67;
+        rule.attr_selector[2].attr_len = 2;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+        rule.attr_selector[3].attr = cbxCfpRuleAttrUDF5;
+        rule.attr_selector[3].attr_val[0] = 68;
+        rule.attr_selector[3].attr_len = 2;
+        rule.attr_selector[3].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        index = index + 2;
+        rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
+        rule.attr_selector[0].attr_val[3] = 0x08;
+        rule.attr_selector[0].attr_len = 8;
+        rule.attr_selector[0].attr_mask[3] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
+        rule.attr_selector[1].attr_val[0] = 0x11;
+        rule.attr_selector[1].attr_len = 8;
+        rule.attr_selector[1].attr_mask[0] = 0xFF;
+        rule.attr_selector[2].attr = cbxCfpRuleAttrUDF4;
+        rule.attr_selector[2].attr_val[0] = 68;
+        rule.attr_selector[2].attr_len = 2;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+        rule.attr_selector[3].attr = cbxCfpRuleAttrUDF5;
+        rule.attr_selector[3].attr_val[0] = 67;
+        rule.attr_selector[2].attr_len = 2;
+        rule.attr_selector[3].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        /* Stag */
+        index = index + 2;
+        rule.num_attributes = 4;
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
+            sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
+        }
+        rule.attr_selector[0].attr = cbxCfpRuleAttrUDF1;
+        rule.attr_selector[0].attr_val[7] = 0x08;
+        rule.attr_selector[0].attr_len = 8;
+        rule.attr_selector[0].attr_mask[7] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrUDF2;
+        rule.attr_selector[1].attr_val[0] = 0x11;
+        rule.attr_selector[1].attr_len = 4;
+        rule.attr_selector[1].attr_mask[0] = 0xFF;
+        rule.attr_selector[2].attr = cbxCfpRuleAttrUDF6;
+        rule.attr_selector[2].attr_val[0] = 67;
+        rule.attr_selector[2].attr_len = 2;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+        rule.attr_selector[3].attr = cbxCfpRuleAttrUDF7;
+        rule.attr_selector[3].attr_val[0] = 68;
+        rule.attr_selector[3].attr_len = 2;
+        rule.attr_selector[3].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        index = index + 2;
+        rule.attr_selector[2].attr_val[0] = 68;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+        rule.attr_selector[3].attr_val[0] = 67;
+        rule.attr_selector[3].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            sal_free(rule.attr_selector[i].attr_val);
+            sal_free(rule.attr_selector[i].attr_mask);
+        }
+        sal_free(rule.attr_selector);
+    } else {
+        rule.key_type = cbxCfpKeyL2IPv4ACL;
+        rule.num_attributes = 3;
+        rule.attr_selector = sal_alloc(
+                                    (3 * sizeof(cbx_cfp_rule_attr_selector_t)),
+                                     "CFP_RULE");
+        for (i = 0; i < 3; i++) {
+            rule.attr_selector[i].attr_val = sal_alloc(1,"CFP_RULE");
+            rule.attr_selector[i].attr_mask = sal_alloc(1,"CFP_RULE");
+            sal_memset(rule.attr_selector[i].attr_val, 0, sizeof(uint8_t));
+            sal_memset(rule.attr_selector[i].attr_mask,0, sizeof(uint8_t));
+        }
+
+        rule.attr_selector[0].attr = cbxCfpRuleAttrL4Type;
+        rule.attr_selector[0].attr_val[0] = CBX_CFP_L4_TYPE_UDP;
+        rule.attr_selector[0].attr_len = 1;
+        rule.attr_selector[0].attr_mask[0] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrL4SrcPort;
+        rule.attr_selector[1].attr_val[0] = 68;
+        rule.attr_selector[1].attr_len = 2;
+        rule.attr_selector[1].attr_mask[0] = 0xFF;
+        rule.attr_selector[2].attr = cbxCfpRuleAttrL4DestPort;
+        rule.attr_selector[2].attr_val[0] = 67;
+        rule.attr_selector[2].attr_len = 2;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        /* set another rule with reversing source and destination ports */
+        index = index + 2;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrL4SrcPort;
+        rule.attr_selector[1].attr_val[0] = 67;
+        rule.attr_selector[1].attr_len = 2;
+        rule.attr_selector[1].attr_mask[0] = 0xFF;
+        rule.attr_selector[2].attr = cbxCfpRuleAttrL4DestPort;
+        rule.attr_selector[2].attr_val[0] = 68;
+        rule.attr_selector[2].attr_len = 2;
+        rule.attr_selector[2].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        for (i = 0; i < 3; i++) {
+            sal_free(rule.attr_selector[i].attr_val);
+            sal_free(rule.attr_selector[i].attr_mask);
+        }
+        sal_free(rule.attr_selector);
     }
-    rule.num_attributes = 3;
-    rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
-    rule.attr_selector[0].attr_val[7] = 0x08;
-    rule.attr_selector[0].attr_len = 8;
-    rule.attr_selector[0].attr_mask[7] = 0xFF;
-    rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
-    rule.attr_selector[1].attr_val[4] = 0x11;
-    rule.attr_selector[1].attr_len = 8;
-    rule.attr_selector[1].attr_mask[4] = 0xFF;
-    rule.attr_selector[2].attr = cbxCfpRuleAttrUDF3;
-    rule.attr_selector[2].attr_val[0] = 67;
-    rule.attr_selector[2].attr_val[2] = 68;
-    rule.attr_selector[2].attr_len = 4;
-    rule.attr_selector[2].attr_mask[0] = 0xFF;
-    rule.attr_selector[2].attr_mask[2] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    index = index + 2;
-    rule.attr_selector[2].attr_val[0] = 68;
-    rule.attr_selector[2].attr_val[2] = 67;
-    rule.attr_selector[2].attr_len = 4;
-    rule.attr_selector[2].attr_mask[0] = 0xFF;
-    rule.attr_selector[2].attr_mask[2] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    /* Ctag */
-    index = index + 2;
-    rule.num_attributes = 4;
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
-        sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
-    }
-    rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
-    rule.attr_selector[0].attr_val[3] = 0x08;
-    rule.attr_selector[0].attr_len = 8;
-    rule.attr_selector[0].attr_mask[3] = 0xFF;
-    rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
-    rule.attr_selector[1].attr_val[0] = 0x11;
-    rule.attr_selector[1].attr_len = 8;
-    rule.attr_selector[1].attr_mask[0] = 0xFF;
-    rule.attr_selector[2].attr = cbxCfpRuleAttrUDF4;
-    rule.attr_selector[2].attr_val[0] = 67;
-    rule.attr_selector[2].attr_len = 2;
-    rule.attr_selector[2].attr_mask[0] = 0xFF;
-    rule.attr_selector[3].attr = cbxCfpRuleAttrUDF5;
-    rule.attr_selector[3].attr_val[0] = 68;
-    rule.attr_selector[3].attr_len = 2;
-    rule.attr_selector[3].attr_mask[0] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    index = index + 2;
-    rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
-    rule.attr_selector[0].attr_val[3] = 0x08;
-    rule.attr_selector[0].attr_len = 8;
-    rule.attr_selector[0].attr_mask[3] = 0xFF;
-    rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
-    rule.attr_selector[1].attr_val[0] = 0x11;
-    rule.attr_selector[1].attr_len = 8;
-    rule.attr_selector[1].attr_mask[0] = 0xFF;
-    rule.attr_selector[2].attr = cbxCfpRuleAttrUDF4;
-    rule.attr_selector[2].attr_val[0] = 68;
-    rule.attr_selector[2].attr_len = 2;
-    rule.attr_selector[2].attr_mask[0] = 0xFF;
-    rule.attr_selector[3].attr = cbxCfpRuleAttrUDF5;
-    rule.attr_selector[3].attr_val[0] = 67;
-    rule.attr_selector[2].attr_len = 2;
-    rule.attr_selector[3].attr_mask[0] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    /* Stag */
-    index = index + 2;
-    rule.num_attributes = 4;
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
-        sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
-    }
-    rule.attr_selector[0].attr = cbxCfpRuleAttrUDF1;
-    rule.attr_selector[0].attr_val[7] = 0x08;
-    rule.attr_selector[0].attr_len = 8;
-    rule.attr_selector[0].attr_mask[7] = 0xFF;
-    rule.attr_selector[1].attr = cbxCfpRuleAttrUDF2;
-    rule.attr_selector[1].attr_val[0] = 0x11;
-    rule.attr_selector[1].attr_len = 4;
-    rule.attr_selector[1].attr_mask[0] = 0xFF;
-    rule.attr_selector[2].attr = cbxCfpRuleAttrUDF6;
-    rule.attr_selector[2].attr_val[0] = 67;
-    rule.attr_selector[2].attr_len = 2;
-    rule.attr_selector[2].attr_mask[0] = 0xFF;
-    rule.attr_selector[3].attr = cbxCfpRuleAttrUDF7;
-    rule.attr_selector[3].attr_val[0] = 68;
-    rule.attr_selector[3].attr_len = 2;
-    rule.attr_selector[3].attr_mask[0] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    index = index + 2;
-    rule.attr_selector[2].attr_val[0] = 68;
-    rule.attr_selector[2].attr_mask[0] = 0xFF;
-    rule.attr_selector[3].attr_val[0] = 67;
-    rule.attr_selector[3].attr_mask[0] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        sal_free(rule.attr_selector[i].attr_val);
-        sal_free(rule.attr_selector[i].attr_mask);
-    }
-    sal_free(rule.attr_selector);
 }
 
 #ifdef CONFIG_IGMP_SNOOPING
 void cfp_udf_igmp_rule_add(cbx_cfpid_t cfpid, uint32 index) {
     cbx_cfp_rule_t rule;
     int rv = 0; int i  = 0;
-    rule.key_type = cbxCfpKeyUDFACL;
-    rule.attr_selector = sal_alloc((CBX_CFP_UDF_ATTR_MAX * sizeof(cbx_cfp_rule_attr_selector_t)), "CFP_RULE");
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        rule.attr_selector[i].attr_val = sal_alloc(16,"CFP_RULE");
-        rule.attr_selector[i].attr_mask = sal_alloc(16,"CFP_RULE");
-        sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
-        sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
-    }
-    rule.num_attributes = 2;
-    rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
-    rule.attr_selector[0].attr_val[7] = 0x08;
-    rule.attr_selector[0].attr_len = 8;
-    rule.attr_selector[0].attr_mask[7] = 0xFF;
-    rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
-    rule.attr_selector[1].attr_val[4] = 0x2;
-    rule.attr_selector[1].attr_len = 8;
-    rule.attr_selector[1].attr_mask[4] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    /* Ctag */
-    index = index + 2;
-    rule.num_attributes = 2;
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
-        sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
-    }
-    rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
-    rule.attr_selector[0].attr_val[3] = 0x08;
-    rule.attr_selector[0].attr_len = 8;
-    rule.attr_selector[0].attr_mask[3] = 0xFF;
-    rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
-    rule.attr_selector[1].attr_val[0] = 0x2;
-    rule.attr_selector[1].attr_len = 8;
-    rule.attr_selector[1].attr_mask[0] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
-    /* Stag */
-    index = index + 2;
-    rule.num_attributes = 2;
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
-        sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
-    }
-    rule.attr_selector[0].attr = cbxCfpRuleAttrUDF1;
-    rule.attr_selector[0].attr_val[7] = 0x08;
-    rule.attr_selector[0].attr_len = 8;
-    rule.attr_selector[0].attr_mask[7] = 0xFF;
-    rule.attr_selector[1].attr = cbxCfpRuleAttrUDF2;
-    rule.attr_selector[1].attr_val[0] = 0x2;
-    rule.attr_selector[1].attr_len = 1;
-    rule.attr_selector[1].attr_mask[0] = 0xFF;
-    rv = cbx_cfp_rule_set(&cfpid, &rule, index);
-    if (rv != 0) {
-        sal_printf(" Failed to add entry\n");
-    }
 
-    for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
-        sal_free(rule.attr_selector[i].attr_val);
-        sal_free(rule.attr_selector[i].attr_mask);
+    if (SOC_DRIVER(0)->type == SOC_CHIP_BCM53158_A0) {
+        rule.key_type = cbxCfpKeyUDFACL;
+        rule.attr_selector = sal_alloc(
+                 (CBX_CFP_UDF_ATTR_MAX * sizeof(cbx_cfp_rule_attr_selector_t)),
+                 "CFP_RULE");
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            rule.attr_selector[i].attr_val = sal_alloc(16,"CFP_RULE");
+            rule.attr_selector[i].attr_mask = sal_alloc(16,"CFP_RULE");
+            sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
+            sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
+        }
+        rule.num_attributes = 2;
+        rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
+        rule.attr_selector[0].attr_val[7] = 0x08;
+        rule.attr_selector[0].attr_len = 8;
+        rule.attr_selector[0].attr_mask[7] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
+        rule.attr_selector[1].attr_val[4] = 0x2;
+        rule.attr_selector[1].attr_len = 8;
+        rule.attr_selector[1].attr_mask[4] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        /* Ctag */
+        index = index + 2;
+        rule.num_attributes = 2;
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
+            sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
+        }
+        rule.attr_selector[0].attr = cbxCfpRuleAttrUDF0;
+        rule.attr_selector[0].attr_val[3] = 0x08;
+        rule.attr_selector[0].attr_len = 8;
+        rule.attr_selector[0].attr_mask[3] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrUDF1;
+        rule.attr_selector[1].attr_val[0] = 0x2;
+        rule.attr_selector[1].attr_len = 8;
+        rule.attr_selector[1].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+        /* Stag */
+        index = index + 2;
+        rule.num_attributes = 2;
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            sal_memset(rule.attr_selector[i].attr_val, 0, 16 * sizeof(uint8_t));
+            sal_memset(rule.attr_selector[i].attr_mask,0, 16 * sizeof(uint8_t));
+        }
+        rule.attr_selector[0].attr = cbxCfpRuleAttrUDF1;
+        rule.attr_selector[0].attr_val[7] = 0x08;
+        rule.attr_selector[0].attr_len = 8;
+        rule.attr_selector[0].attr_mask[7] = 0xFF;
+        rule.attr_selector[1].attr = cbxCfpRuleAttrUDF2;
+        rule.attr_selector[1].attr_val[0] = 0x2;
+        rule.attr_selector[1].attr_len = 1;
+        rule.attr_selector[1].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+
+        for (i = 0; i < CBX_CFP_UDF_ATTR_MAX; i++) {
+            sal_free(rule.attr_selector[i].attr_val);
+            sal_free(rule.attr_selector[i].attr_mask);
+        }
+        sal_free(rule.attr_selector);
+    } else {
+        rule.key_type = cbxCfpKeyL2IPv4ACL;
+        rule.num_attributes = 1;
+        rule.attr_selector = sal_alloc((sizeof(cbx_cfp_rule_attr_selector_t)),
+                                       "CFP_RULE");
+
+        rule.attr_selector[0].attr_val = sal_alloc(1,"CFP_RULE");
+        rule.attr_selector[0].attr_mask = sal_alloc(1,"CFP_RULE");
+        sal_memset(rule.attr_selector[0].attr_val, 0, sizeof(uint8_t));
+        sal_memset(rule.attr_selector[0].attr_mask, 0, sizeof(uint8_t));
+
+        rule.attr_selector[0].attr = cbxCfpRuleAttrL4Type;
+        rule.attr_selector[0].attr_val[0] = CBX_CFP_L4_TYPE_IGMP;
+        rule.attr_selector[0].attr_len = 1;
+        rule.attr_selector[0].attr_mask[0] = 0xFF;
+        rv = cbx_cfp_rule_set(&cfpid, &rule, index);
+        if (rv != 0) {
+            sal_printf(" Failed to add entry\n");
+        }
+
+        sal_free(rule.attr_selector[0].attr_val);
+        sal_free(rule.attr_selector[0].attr_mask);
+        sal_free(rule.attr_selector);
     }
-    sal_free(rule.attr_selector);
 }
 
 void cfp_udf_igmp_rule_clear(cbx_cfpid_t cfpid, uint32 index) {
@@ -889,17 +986,20 @@ void cfp_udf_igmp_rule_clear(cbx_cfpid_t cfpid, uint32 index) {
     if (rv != 0) {
         sal_printf(" Failed to clear CFP rule %d\n", index);
     }
-    /* Ctag */
-    index = index + 2;
-    rv = cbx_cfp_rule_clear(&cfpid, index);
-    if (rv != 0) {
-        sal_printf(" Failed to clear CFP rule %d\n", index);
-    }
-    /* Stag */
-    index = index + 2;
-    rv = cbx_cfp_rule_clear(&cfpid, index);
-    if (rv != 0) {
-        sal_printf(" Failed to clear CFP rule %d\n", index);
+
+    if (SOC_DRIVER(0)->type == SOC_CHIP_BCM53158_A0) {
+        /* Ctag */
+        index = index + 2;
+        rv = cbx_cfp_rule_clear(&cfpid, index);
+        if (rv != 0) {
+            sal_printf(" Failed to clear CFP rule %d\n", index);
+        }
+        /* Stag */
+        index = index + 2;
+        rv = cbx_cfp_rule_clear(&cfpid, index);
+        if (rv != 0) {
+            sal_printf(" Failed to clear CFP rule %d\n", index);
+        }
     }
 }
 #endif
@@ -924,11 +1024,13 @@ int cbx_fsal_get_cfp_id(cbx_cfpid_t *pcfpid)
     return CBX_E_NONE;
 }
 
+#ifdef HYBRID_M7_MODE
 int
 cbx_fsal_m7_hybrid_mode_init(void)
 {
     return ts_m7_hybrid_mode_init();
 }
+#endif
 
 #ifdef CONFIG_BC_MODE1
 int
@@ -1298,10 +1400,8 @@ cbx_fsal_init(void)
             (BSL_META("cbx_stat_init: rv = %d\n"), rv));
     }
 #ifndef CONFIG_EXTERNAL_HOST
-    if (SOC_DRIVER(0)->type == SOC_CHIP_BCM53158_A0) {
-        cfp_action_add(cfpid);
-        cfp_udf_dhcp_rule_add(cfpid, 0);
-    }
+    cfp_dhcp_action_add(cfpid);
+    cfp_udf_dhcp_rule_add(cfpid, 0);
 #endif
 
     /* Set action to disable drop_mlf for Broadcast packets */

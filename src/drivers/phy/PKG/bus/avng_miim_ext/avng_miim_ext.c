@@ -15,7 +15,10 @@
 static uint32_t
 _phy_addr(int port)
 {
-    return port + 0x80;
+    if ((port >=8) && (port <= 11))
+        return((port - 8) + 0x10);
+    else
+        return port + 0x80;
 }
 
 static int

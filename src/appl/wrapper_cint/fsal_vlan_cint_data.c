@@ -60,6 +60,12 @@ CINT_FWRAPPER_CREATE_RP2(int, int, 0, 0,
                          cbx_vlanid_t, cbx_vlanid_t, vlanid, 0, 0,
                          cbx_vlan_params_t, cbx_vlan_params_t,
 						 vlan_params, 0, 0);
+#ifdef CONFIG_VLAN_PVID
+CINT_FWRAPPER_CREATE_RP2(int, int, 0, 0,
+                         cbx_vlan_port_pvid_set,
+                         cbx_vlanid_t, cbx_vlanid_t, vlanid, 0, 0,
+                         cbx_portid_t, cbx_portid_t, portid, 0, 0);
+#endif
 
 static void*
 __cint_maddr__cbx_vlan_params_t(void* p, int mnum, cint_struct_type_t* parent)
@@ -237,6 +243,9 @@ static cint_function_t __cint_fsal_vlan_functions[] =
         CINT_FWRAPPER_ENTRY(cbx_vlan_port_get),
         CINT_FWRAPPER_ENTRY(cbx_vlan_get),
         CINT_FWRAPPER_ENTRY(cbx_vlan_set),
+#ifdef CONFIG_VLAN_PVID
+        CINT_FWRAPPER_ENTRY(cbx_vlan_port_pvid_set),
+#endif
 
         CINT_ENTRY_LAST
     };

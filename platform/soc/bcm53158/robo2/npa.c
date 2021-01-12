@@ -13,12 +13,14 @@
 
 #include <sal_types.h>
 #include <sal_alloc.h>
+#include <shared/pbmp.h>
 #include <bsl_log/bsl.h>
 #include <fsal_int/types.h>
 #include <soc/drv.h>
 #include <soc/cpu_m7.h>
 #include <soc/robo2/common/regacc.h>
 #include <fsal/link.h>
+#include <fsal_int/link.h>
 #include <sal_console.h>
 
 #ifdef CORTEX_M7
@@ -46,7 +48,6 @@ npa_link_chg_handler(int unit)
 {
     uint32 intsts;
     uint32 linksts;
-    cbx_link_scan_params_t lc_params;
 
     do {
         intsts = 0;
@@ -55,12 +56,8 @@ npa_link_chg_handler(int unit)
             break;
         } else {
             REG_READ_NPA_NPA_RX_LINK_STATUSr(unit, &linksts);
-            lc_params.usec = 0;
-            cbx_link_scan_enable_get(&lc_params);
-            if (lc_params.usec) {
-                /* Schedule link scan immediately */
-                cbx_link_scan_enable_set(&lc_params);
-            }
+            /* Schedule link scan immediately */
+            cbxi_link_scan_wakeup();
             npa_intr_ack(unit, intsts);
         }
     } while(1);

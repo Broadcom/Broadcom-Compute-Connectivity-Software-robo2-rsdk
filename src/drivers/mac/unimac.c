@@ -182,7 +182,7 @@ mac_uni_init(int unit, soc_port_t port)
     fval = 1;
     soc_UMAC_COMMAND_CONFIGr_field_set(unit,
                                        &ocommand_config, RX_ERR_DISCf, &fval);
-    if (port >= 8) {
+    if (port >= 10) { /* include all unimac ports 0 - 9 */
         fval = 0;
     } else {
         fval = 1;
@@ -608,15 +608,15 @@ mac_uni_speed_set(int unit, soc_port_t port, uint32 speed)
 STATIC int
 mac_uni_speed_get(int unit, soc_port_t port, uint32 *speed)
 {
-    uint32         command_config, uni_speed;
+    uint32         mac_mode, mac_speed;
     int            rv = SOC_E_NONE;
 
-    SOC_IF_ERROR_RETURN(REG_READ_UMAC_COMMAND_CONFIGr(unit, port, &command_config));
+    SOC_IF_ERROR_RETURN(REG_READ_UMAC_MAC_MODEr(unit, port, &mac_mode));
 
-    SOC_IF_ERROR_RETURN(soc_UMAC_COMMAND_CONFIGr_field_get(unit,
-                                     &command_config, ETH_SPEEDf, &uni_speed));
+    SOC_IF_ERROR_RETURN(soc_UMAC_MAC_MODEr_field_get(unit,
+                                     &mac_mode, MAC_SPEEDf, &mac_speed));
 
-    switch(uni_speed) {
+    switch(mac_speed) {
     case SOC_UNIMAC_SPEED_10:
     *speed = 10;
     break;

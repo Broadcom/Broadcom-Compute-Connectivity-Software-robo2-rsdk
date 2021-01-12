@@ -1347,7 +1347,8 @@ cbxi_vlan_port_mode_set(int unit, uint32_t vsi,
                 rule = SLIC_CUSTOMER_PORT_LIN;
             }
         } else {
-            if (port_type == cbxPortTypeCustomer) {
+            if ((port_type == cbxPortTypeCustomer) ||
+                (port_type == cbxPortTypePortVLAN)) {
                 rule = SLIC_CUSTOMER_PORT_VLAN;
             } else if (port_type == cbxPortTypeProvider) {
                 rule = SLIC_PROVIDER_PORT_VLAN;
@@ -1536,7 +1537,9 @@ cbxi_vlan_pg_map_set(int unit, cbx_vlanid_t vlanid,
     cbx_vlan_t vsi;
     cbx_vlan_t vid;
     pbmp_t pg_map;
+#ifndef CONFIG_VLAN_PVID
     cbx_port_t port;
+#endif
     cbxi_pgid_t csd_lpg;
 
     if (SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) {
@@ -1557,9 +1560,12 @@ cbxi_vlan_pg_map_set(int unit, cbx_vlanid_t vlanid,
 
     pg_map = (pbmp_t)ent_vsit.pg_map;
 
+#ifndef CONFIG_VLAN_PVID
     port = local_pg + (unit * CBX_MAX_PORT_PER_UNIT);
+#endif
     /* Update pg_map according to flags */
     if (flags & CBX_VLAN_PORT_ADD) {
+#ifndef CONFIG_VLAN_PVID
         if (!((SOC_IS_CASCADED(CBX_AVENGER_PRIMARY) && (csd_lpg == local_pg)) ||
                                 (flags & CBX_VLAN_PORT_LIF))) {
             /* Skip the check if cascade port */
@@ -1571,6 +1577,7 @@ cbxi_vlan_pg_map_set(int unit, cbx_vlanid_t vlanid,
                 return CBX_E_PARAM;
             }
         }
+#endif
         CBX_PBMP_PORT_ADD(pg_map, local_pg);
     } else if (flags & CBX_VLAN_PORT_REMOVE) {
         CBX_PBMP_PORT_REMOVE(pg_map, local_pg);
@@ -1745,7 +1752,9 @@ cbxi_vlan_port_update(cbx_vlanid_t vlanid,
     cbxi_pgid_t remote_pg = CBXI_PGID_INVALID;
     int rv = CBX_E_NONE;
     cbx_lag_info_t lag_info;
+#ifndef CONFIG_VLAN_PVID
     cbx_port_params_t port_params;
+#endif
 
    /* Check if VLAN exists */
     if(!cbxi_vlan_vid_lookup(vlanid)) {
@@ -1875,6 +1884,7 @@ cbxi_vlan_port_update(cbx_vlanid_t vlanid,
     }
 
 
+#ifndef CONFIG_VLAN_PVID
     if ((flags & CBX_VLAN_PORT_ADD) &&
                         (CBX_VLAN_PORT_MODE_UNTAGGED == mode)) {
         CBX_IF_ERROR_RETURN(cbx_port_info_get(portid, &port_params));
@@ -1883,6 +1893,7 @@ cbxi_vlan_port_update(cbx_vlanid_t vlanid,
             CBX_IF_ERROR_RETURN(cbx_port_info_set(portid, &port_params));
         }
     }
+#endif
 
     return CBX_E_NONE;
 }
@@ -2397,6 +2408,7 @@ int cbx_vlan_port_get(cbx_vlanid_t vlanid, int array_max,
     cbx_port_t port;
     int count = 0;
     cbx_lag_info_t lag_info;
+    uint32_t pgid;
 
 #ifdef CONFIG_PORT_EXTENDER
     if (cbxi_check_port_extender_mode() == CBX_E_NONE) {
@@ -2458,10 +2470,13 @@ int cbx_vlan_port_get(cbx_vlanid_t vlanid, int array_max,
             }
 #endif /* CONFIG_CASCADED_MODE */
             if (CBX_E_NONE == cbx_port_lookup(&lu, portid_array)) {
+                cbxi_pgid_t _local_pg = CBXI_PGID_INVALID;
+
                 portid_array++;
 
+                CBX_IF_ERROR_RETURN(cbxi_robo2_port_to_lpg(unit, port, &_local_pg));
                 CBX_IF_ERROR_RETURN(cbxi_vlan_port_mode_get(
-                                            unit, vsi, port, mode_array));
+                                            unit, vsi, _local_pg, mode_array));
                 mode_array++;
 
                 count++;
@@ -2488,24 +2503,22 @@ int cbx_vlan_port_get(cbx_vlanid_t vlanid, int array_max,
 
         if (lag_info.lpgid != CBXI_PGID_INVALID) {
             unit = CBX_AVENGER_PRIMARY;
+            pgid = lag_info.lpgid;
         } else if (lag_info.rlpgid != CBXI_PGID_INVALID) {
             if (SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) {
                 unit = CBX_AVENGER_SECONDARY;
+                pgid = lag_info.rlpgid;
             } else {
                 return CBX_E_PARAM;
             }
         } else {
             return CBX_E_PARAM;
         }
-
         CBX_IF_ERROR_RETURN(cbxi_vlan_port_mode_get(
-                                   unit , vsi, lag_info.lpgid, mode_array));
+                                   unit , vsi, pgid, mode_array));
 
         *portid_array = portid;
         portid_array++;
-
-        CBX_IF_ERROR_RETURN(cbxi_vlan_port_mode_get(
-                                   unit , vsi, lag_info.lpgid, mode_array));
         mode_array++;
 
         count++;
@@ -2520,3 +2533,37 @@ int cbx_vlan_port_get(cbx_vlanid_t vlanid, int array_max,
     return CBX_E_NONE;
 
 }
+
+#ifdef CONFIG_VLAN_PVID
+int cbx_vlan_port_pvid_set( cbx_vlanid_t vlanid,
+                            cbx_portid_t portid)
+{
+    int unit = CBX_AVENGER_PRIMARY;
+    cbx_port_params_t port_params;
+    cbx_port_t port;
+    cbxi_pgid_t local_pg = CBXI_PGID_INVALID;
+    int rv;
+
+    /* Check if VLAN exists */
+    if(!cbxi_vlan_vid_lookup(vlanid)) {
+        return CBX_E_NOT_FOUND;
+    }
+
+    /* Validate the port number passed, and obtain physical port
+     * corresponding to given portid */
+    rv = cbxi_robo2_port_validate(portid, &port, &local_pg, &unit);
+    if (CBX_FAILURE(rv)) {
+        LOG_ERROR(BSL_LS_FSAL_VLAN,
+            (BSL_META("VLAN port pvid set API:Invalid port \n")));
+        return rv;
+    }
+
+    CBX_IF_ERROR_RETURN(cbx_port_info_get(portid, &port_params));
+    if (port_params.port_type != cbxPortTypeCascade) {
+        port_params.default_vid = vlanid;
+        CBX_IF_ERROR_RETURN(cbx_port_info_set(portid, &port_params));
+    }
+
+    return CBX_E_NONE;
+}
+#endif

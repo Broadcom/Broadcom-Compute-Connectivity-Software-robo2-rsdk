@@ -68,6 +68,7 @@
 #define CBXI_SLIC_LAG_CFP_KEYSET_OTHER        0
 #define CBXI_SLIC_LAG_CFP_KEYSET_IPV4         1
 #define CBXI_SLIC_LAG_CFP_KEYSET_IPV6         2
+#define CBXI_SLIC_LAG_CFP_KEYSET_ETAG         3
 
 /** CFP Key index */
 #define CBXI_IKFT_L2_KEY_ID                   0
@@ -90,6 +91,8 @@
 #define CBXI_IKFT_LIM_MPLS_KEY_ID             14
 
 #endif /* CONFIG_VIRTUAL_PORT_SUPPORT */
+#define CBXI_IKFT_ETAG_KEY_ID                 15
+
 
 /* DBID for keys */
 #define CBXI_CFP_L2_KEY_DBID                 0
@@ -97,6 +100,7 @@
 #define CBXI_CFP_UDF_KEY_DBID                2
 #define CBXI_CFP_IPV6_KEY_DBID               3
 #define CBXI_CFP_L2_IPV4_KEY_DBID            4
+#define CBXI_CFP_ETAG_KEY_DBID               5
 
 #define  CBXI_IKFT_CFP_KEY_TYPE_L2  ((CBXI_IKFT_FIELD_FRAME_SUMMARY) | \
                                     (CBXI_IKFT_FIELD_RANGE_RESULT) | \
@@ -167,6 +171,7 @@
                                     (CBXI_IKFT_FIELD_MPLS))
 #endif /* CONFIG_VIRTUAL_PORT_SUPPORT */
 
+#define  CBXI_IKFT_CFP_KEY_TYPE_ETAG  ((CBXI_IKFT_FIELD_ETAG_ECID))
 
 /** IKFT fields  */
 #define  CBXI_IKFT_FIELD_FRAME_SUMMARY  0x1    /* SP and L2 status */
@@ -199,6 +204,9 @@
 #define  CBXI_IKFT_FIELD_L3_DA          0x8000000 /* L3 Destination IP address */
 #define  CBXI_IKFT_FIELD_ITAG_ISID      0x10000000 /* ITAG SID */
 #define  CBXI_IKFT_FIELD_MPLS           0x20000000 /* Outer MPLS lebel */
+#define  CBXI_IKFT_FIELD_ETAG_ICID      0x40000000 /* Ingress ECID*/
+#define  CBXI_IKFT_FIELD_ETAG_ECID      0x80000000 /* ECID */
+
 
 /* Convert uint8 array to uint32 [] array
  * (dst)[0] is lsb ; (dst)[1] */

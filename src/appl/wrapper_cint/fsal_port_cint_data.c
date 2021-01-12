@@ -274,6 +274,7 @@ static cint_enum_map_t __cint_enum_map__cbx_port_type_t[] =
     { "cbxPortTypeExtender", cbxPortTypeExtender },
     { "cbxPortTypeExtenderCascade", cbxPortTypeExtenderCascade },
     { "cbxPortTypeExtenderUpstream", cbxPortTypeExtenderUpstream },
+    { "cbxPortTypePortVLAN", cbxPortTypePortVLAN },
     CINT_ENTRY_LAST
 };
 static cint_enum_map_t __cint_enum_map__cbx_port_sli_mode_t[] =

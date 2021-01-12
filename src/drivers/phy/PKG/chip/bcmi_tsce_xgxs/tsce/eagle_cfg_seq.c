@@ -185,9 +185,9 @@ err_code_t eagle_pll_mode_set(const phymod_access_t *pa, int pll_mode)   /* PLL 
     return ERR_CODE_NONE;
 }
 err_code_t eagle_core_init_vco(phymod_access_t *pa, uint32_t vco_12p5) {
-    if(vco_12p5) {
-        LEFUN(eagle_phy_pcs_12p5_vco_setup(pa));
-    }
+
+    LEFUN(eagle_phy_pcs_12p5_vco_setup(pa, vco_12p5));
+
     /* 20.2 - PMD setup */
     LEFUN(wrc_refclk_sel(0x3));
     /* Bypass PMD Tx Oversampling */
@@ -1319,6 +1319,7 @@ err_code_t tsce_phy_pcs_an_speed_setup(const phymod_access_t *pa, temod_spd_intf
             LEFUN(wr_base_selector                 (0x1));
             LEFUN(wr_fec_requested                 (0x1));
             LEFUN(wr_cl73_enable                   (0x1));
+            LEFUN(wr_SW_actual_speed               (0xf));
             break;
         case TEMOD_SPD_73AN_USER_KR_10G_FEC_REQ  :
             LEFUN(wr_use_ieee_reg_ctrl_sel         (0x2));
@@ -1527,45 +1528,87 @@ err_code_t eagle_phy_pmd_setup (const phymod_access_t *pa, int pmd_touched, cons
     return (ERR_CODE_NONE);
 }
 
-err_code_t eagle_phy_pcs_12p5_vco_setup(const phymod_access_t *pa)
+err_code_t eagle_phy_pcs_12p5_vco_setup(const phymod_access_t *pa, uint32_t enable)
 {
-   LEFUN(wrc_os_mode_cl36_2500m                        (0x4));
-   LEFUN(wrc_os_mode_cl36_1000m                        (0x8));
-   LEFUN(wrc_os_mode_cl36_100m                         (0x8));
-   LEFUN(wrc_os_mode_cl36_10m                          (0x8));
+   if (enable) {
 
-   LEFUN(wrc_osr_mode_cl73                             (0x9));
-   LEFUN(wrc_osr_mode_cl36                             (0x9));
-   LEFUN(wrc_osr_mode_cl36_2p5                         (0x4));
-   LEFUN(wrc_osr_mode_cl49                             (0x0));
+       LEFUN(wrc_os_mode_cl36_2500m                        (0x4));
+       LEFUN(wrc_os_mode_cl36_1000m                        (0x8));
+       LEFUN(wrc_os_mode_cl36_100m                         (0x8));
+       LEFUN(wrc_os_mode_cl36_10m                          (0x8));
 
-   LEFUN(wrc_reg1G_ClockCount0                         (0x19));
-   LEFUN(wrc_reg1G_CGC                                 (0x6));
-   LEFUN(wrc_reg1G_loopcnt0                            (0x1));
-   LEFUN(wrc_reg1G_ClockCount1                         (0x0));
-   LEFUN(wrc_reg1G_loopcnt1                            (0x0));
-   LEFUN(wrc_reg1G_modulo                              (0x5));
+       LEFUN(wrc_osr_mode_cl73                             (0x9));
+       LEFUN(wrc_osr_mode_cl36                             (0x9));
+       LEFUN(wrc_osr_mode_cl36_2p5                         (0x4));
+       LEFUN(wrc_osr_mode_cl49                             (0x0));
 
-   LEFUN(wrc_reg100M_ClockCount0                       (0x7d));
-   LEFUN(wrc_reg100M_CGC                               (0x1f));
-   LEFUN(wrc_reg100M_loopcnt0                          (0x1));
-   LEFUN(wrc_reg100M_ClockCount1                       (0x0));
-   LEFUN(wrc_reg100M_loopcnt1_Hi                       (0x0));
-   LEFUN(wrc_reg100M_loopcnt1_Lo                       (0x0));
-   LEFUN(wrc_reg100M_PCS_ClockCount0                   (0x32));
-   LEFUN(wrc_reg100M_PCS_CGC                           (0x31));
-   LEFUN(wrc_reg100M_modulo                            (0x1f));
+       LEFUN(wrc_reg1G_ClockCount0                         (0x19));
+       LEFUN(wrc_reg1G_CGC                                 (0x6));
+       LEFUN(wrc_reg1G_loopcnt0                            (0x1));
+       LEFUN(wrc_reg1G_ClockCount1                         (0x0));
+       LEFUN(wrc_reg1G_loopcnt1                            (0x0));
+       LEFUN(wrc_reg1G_modulo                              (0x5));
 
-   LEFUN(wrc_reg10M_ClockCount0                        (0x271));
-   LEFUN(wrc_reg10M_CGC                                (0x138));
-   LEFUN(wrc_reg10M_loopcnt0                           (0x1));
-   LEFUN(wrc_reg10M_ClockCount1                        (0x0));
-   LEFUN(wrc_reg10M_loopcnt1_Hi                        (0x0));
-   LEFUN(wrc_reg10M_loopcnt1_Lo                        (0x0));
-   LEFUN(wrc_reg10M_PCS_ClockCount0                    (0x32));
-   LEFUN(wrc_reg10M_PCS_CGC                            (0x31));
-   LEFUN(wrc_reg10M_modulo                             (0x138));
+       LEFUN(wrc_reg100M_ClockCount0                       (0x7d));
+       LEFUN(wrc_reg100M_CGC                               (0x1f));
+       LEFUN(wrc_reg100M_loopcnt0                          (0x1));
+       LEFUN(wrc_reg100M_ClockCount1                       (0x0));
+       LEFUN(wrc_reg100M_loopcnt1_Hi                       (0x0));
+       LEFUN(wrc_reg100M_loopcnt1_Lo                       (0x0));
+       LEFUN(wrc_reg100M_PCS_ClockCount0                   (0x32));
+       LEFUN(wrc_reg100M_PCS_CGC                           (0x31));
+       LEFUN(wrc_reg100M_modulo                            (0x1f));
 
+       LEFUN(wrc_reg10M_ClockCount0                        (0x271));
+       LEFUN(wrc_reg10M_CGC                                (0x138));
+       LEFUN(wrc_reg10M_loopcnt0                           (0x1));
+       LEFUN(wrc_reg10M_ClockCount1                        (0x0));
+       LEFUN(wrc_reg10M_loopcnt1_Hi                        (0x0));
+       LEFUN(wrc_reg10M_loopcnt1_Lo                        (0x0));
+       LEFUN(wrc_reg10M_PCS_ClockCount0                    (0x32));
+       LEFUN(wrc_reg10M_PCS_CGC                            (0x31));
+       LEFUN(wrc_reg10M_modulo                             (0x138));
+
+   }  else {
+
+       LEFUN(wrc_os_mode_cl36_2500m                        (0x3));
+       LEFUN(wrc_os_mode_cl36_1000m                        (0x7));
+       LEFUN(wrc_os_mode_cl36_100m                         (0x7));
+       LEFUN(wrc_os_mode_cl36_10m                          (0x7));
+
+       LEFUN(wrc_osr_mode_cl73                             (0x8));
+       LEFUN(wrc_osr_mode_cl36                             (0x8));
+       LEFUN(wrc_osr_mode_cl36_2p5                         (0x3));
+       LEFUN(wrc_osr_mode_cl49                             (0x0));
+
+       LEFUN(wrc_reg1G_ClockCount0                         (0xa5));
+       LEFUN(wrc_reg1G_CGC                                 (0x5));
+       LEFUN(wrc_reg1G_loopcnt0                            (0x1));
+       LEFUN(wrc_reg1G_ClockCount1                         (0x0));
+       LEFUN(wrc_reg1G_loopcnt1                            (0x0));
+       LEFUN(wrc_reg1G_modulo                              (0x4));
+
+       LEFUN(wrc_reg100M_ClockCount0                       (0x339));
+       LEFUN(wrc_reg100M_CGC                               (0x19));
+       LEFUN(wrc_reg100M_loopcnt0                          (0x1));
+       LEFUN(wrc_reg100M_ClockCount1                       (0x0));
+       LEFUN(wrc_reg100M_loopcnt1_Hi                       (0x0));
+       LEFUN(wrc_reg100M_loopcnt1_Lo                       (0x0));
+       LEFUN(wrc_reg100M_PCS_ClockCount0                   (0xa5));
+       LEFUN(wrc_reg100M_PCS_CGC                           (0x29));
+       LEFUN(wrc_reg100M_modulo                            (0x19));
+
+       LEFUN(wrc_reg10M_ClockCount0                        (0x101d));
+       LEFUN(wrc_reg10M_CGC                                (0x101));
+       LEFUN(wrc_reg10M_loopcnt0                           (0x1));
+       LEFUN(wrc_reg10M_ClockCount1                        (0x0));
+       LEFUN(wrc_reg10M_loopcnt1_Hi                        (0x0));
+       LEFUN(wrc_reg10M_loopcnt1_Lo                        (0x0));
+       LEFUN(wrc_reg10M_PCS_ClockCount0                    (0xa5));
+       LEFUN(wrc_reg10M_PCS_CGC                            (0x29));
+       LEFUN(wrc_reg10M_modulo                             (0x101));
+
+   }
    return (ERR_CODE_NONE);
 }
 err_code_t eagle_pmd_an_get(const phymod_access_t *pa, phymod_autoneg_control_t* an, uint32_t* an_done)

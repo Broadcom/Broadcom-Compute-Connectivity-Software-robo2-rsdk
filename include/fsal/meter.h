@@ -88,6 +88,7 @@ typedef uint32_t cbx_meter_profile_t;
  */
 #define CBX_METER_MAX  128
 
+
 /**
  * Metering Types
  */
@@ -110,6 +111,23 @@ typedef enum cbx_meter_mode_e {
     cbxMeterModeMEFBw,           /**< MEF Bandwidth Profile algorithm */
     cbxMeterModeCoupledMEFBw,    /**< MEF Bandwidth Profile with coupling */
 } cbx_meter_mode_t;
+
+/**
+ * Meter controls
+ * The meter control type setting is used in ingress policing/metering,
+ * when flowcontrol mode is none. By default meter control type is set
+ * to cbxMeterControlPortTC.
+ *
+ * Two meter control types are supported
+ * - spg, tc - Per port and TC
+ * - spg -  Per port
+ *
+ */
+typedef enum cbx_meter_control_e {
+    cbxMeterControlPortTC,       /* spg, tc */
+    cbxMeterControlPort,         /* spg */
+} cbx_meter_control_t;
+
 
 /** @{
  * Meter Flags
@@ -331,6 +349,29 @@ int cbx_meter_pm_disable ( cbx_meterid_t meterid );
 int cbx_meter_pm_get ( cbx_meterid_t          meterid,
                        cbx_meter_pm_params_t *pm_params );
 
+/**
+ * Meter control type set
+ *
+ * @param meter_ctrl    (IN)  Meter control type
+ *
+ * @return return code
+ * @retval CBX_E_NONE Success
+ *         CBX_E_XXXX Failure
+ */
+int cbx_meter_control_set(cbx_meter_control_t meter_ctrl);
+
+/**
+ * Meter control type get
+ *
+ * @param meter_ctrl    (IN/OUT)  Meter control type
+ *
+ * @return return code
+ * @retval CBX_E_NONE Success
+ *         CBX_E_XXXX Failure
+ */
+int cbx_meter_control_get(cbx_meter_control_t *meter_ctrl);
+
+extern cbx_meter_control_t cbx_meter_ctrl;
 
 /**
  * @}

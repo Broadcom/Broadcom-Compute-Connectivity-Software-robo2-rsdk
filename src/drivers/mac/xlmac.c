@@ -270,14 +270,36 @@ soc_port_credit_reset(int unit, soc_port_t port)
 int
 soc_port_fifo_reset(int unit, soc_port_t port)
 {
-    uint32 rval, orig_rval;
+    uint32 rval;
     uint32 fval = 1;
 
     SOC_IF_ERROR_RETURN(REG_READ_XLPORT_SOFT_RESETr(unit, &rval));
-    orig_rval = rval;
-    soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT0f, &fval);
+
+    if (port == 10) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT2f, &fval);
+    } else if (port == 11) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT3f, &fval);
+    } else if (port == 12) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT1f, &fval);
+    } else if (port == 13) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT0f, &fval);
+    }
+
     SOC_IF_ERROR_RETURN(REG_WRITE_XLPORT_SOFT_RESETr(unit, &rval));
-    SOC_IF_ERROR_RETURN(REG_WRITE_XLPORT_SOFT_RESETr(unit, &orig_rval));
+
+    fval = 0;
+
+    if (port == 10) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT2f, &fval);
+    } else if (port == 11) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT3f, &fval);
+    } else if (port == 12) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT1f, &fval);
+    } else if (port == 13) {
+        soc_XLPORT_SOFT_RESETr_field_set(unit, (uint32 *)&rval, PORT0f, &fval);
+    }
+
+    SOC_IF_ERROR_RETURN(REG_WRITE_XLPORT_SOFT_RESETr(unit, &rval));
     return SOC_E_NONE;
 }
 /*
@@ -394,8 +416,10 @@ mac_xl_init(int unit, soc_port_t port)
     fval = 1;
     soc_XLMAC_CTRLr_field_set(unit, (uint32 *)&reg_data, TX_ENf, &fval);
     soc_XLMAC_CTRLr_field_set(unit, (uint32 *)&reg_data, RX_ENf, &fval);
+    soc_XLMAC_CTRLr_field_set(unit, (uint32 *)&reg_data, LINK_STATUS_SELECTf, &fval);
     fval = 0;
     soc_XLMAC_CTRLr_field_set(unit, (uint32 *)&reg_data, SOFT_RESETf, &fval);
+    soc_XLMAC_CTRLr_field_set(unit, (uint32 *)&reg_data, SW_LINK_STATUSf, &fval);
     SOC_IF_ERROR_RETURN(REG_WRITE_XLMAC_CTRLr(unit, port, (uint32 *)&reg_data));
     reg_data[0] = 0 ;
     reg_data[1] = 0 ;
@@ -522,9 +546,12 @@ mac_xl_enable_set(int unit, soc_port_t port, uint32 enable)
     uint32 soft_reset = 0;
     uint32 fval = 1;
 
+#ifdef CONFIG_PORT_EXTENDER
     if ((port == 12) || (port == 13)) {
         return CBX_E_NONE;
     }
+#endif
+
     SOC_IF_ERROR_RETURN(REG_READ_XLMAC_CTRLr(unit, port, &ctrl));
     octrl[0] = ctrl[0];
     octrl[1] = ctrl[1];

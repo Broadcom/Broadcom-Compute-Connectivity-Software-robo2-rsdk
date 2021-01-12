@@ -931,6 +931,11 @@ bcmi_viper_xgxs_speed_get(phy_ctrl_t *pc, uint32_t *speed)
 
     PHY_CTRL_CHECK(pc);
 
+    if (pc->interface == phymodInterfaceQSGMII) {
+        *speed  = 1000;
+        return rv;
+    }
+
     _viper_phymod_phy_t_init(pc, &pm_phy);
     inst = PHY_CTRL_INST(pc) & LANE_NUM_MASK;
     pm_phy.access.lane_mask = 1 << inst;

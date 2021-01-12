@@ -87,6 +87,7 @@ typedef enum cbx_port_loopback_e {
 
 #define CBX_PE_LB_PORT      14
 #define CBX_PORT_GPHY_MAX    8
+#define CBX_PORT_PBMP_10G_PORTS ((1<< 12 | 1 << 13))
 
 #ifdef CONFIG_CASCADED_MODE
 

@@ -42,7 +42,7 @@ extern int sal_strtol(const char *nptr, char **endptr, int base);
 extern unsigned int sal_strtoul(const char *nptr, const char **endptr, int base);
 extern uint64_t sal_strtoull(const char *nptr, const char **endptr, int base);
 extern char * sal_strdup(const char *s);
-extern int sal_isalnum(const char c);
+extern int sal_isalnum(int c);
 
 uint32_t sal_strspn(const char *s, const char *accept);
 uint32_t sal_strcspn(const char *s, const char *reject);

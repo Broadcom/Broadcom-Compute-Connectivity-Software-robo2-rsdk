@@ -242,7 +242,11 @@ cbxi_robo2_portid_resolve(cbx_portid_t portid, cbxi_pgid_t *gpg)
         }
         /* Obtain GPG value of given lag*/
         CBX_IF_ERROR_RETURN(cbxi_robo2_lag_get(portid, &lag_info));
-        *gpg = lag_info.gpgid;
+        if (lag_info.gpgid != CBXI_PGID_INVALID) {
+            *gpg = lag_info.gpgid;
+        } else {
+            *gpg = lag_info.rgpgid;
+        }
     } else {
         /* Obtain GPG corresponding to given physical port */
         rv = cbxi_robo2_port_validate(portid, &port, &lpg, &unit);
@@ -330,7 +334,6 @@ cbxi_robo2_portid_construct(cbxi_pgid_t gpg, cbx_portid_t *portid)
     /* Read entry from LPP2PGFOV */
     CBX_IF_ERROR_RETURN(soc_robo2_lpg2ppfov_get(unit, lpg, &ppfov_entry));
     ppfov = ppfov_entry.ppfov;
-
     if (CBX_PBMP_IS_NULL(ppfov)) {
         return CBX_E_PARAM;
     }
@@ -343,7 +346,7 @@ cbxi_robo2_portid_construct(cbxi_pgid_t gpg, cbx_portid_t *portid)
             continue;
         }
 #endif
-        rv = cbxi_robo2_lag_member_check(port, &lagid);
+        rv = cbxi_robo2_lag_member_check((unit*16) + port, &lagid);
         if (CBX_SUCCESS(rv)) {
         /* Given DPG represents a LAG. Form portid from obtained lagid */
             CBX_PORTID_TRUNK_SET(*portid, lagid);
@@ -720,6 +723,36 @@ cbxi_robo2_find_exponent(uint32 val)
 
 /*
  * Function:
+ *    cbxi_robo2_reset_arl_data
+ * Purpose:
+ *    Configure the scan data and mask register to find an non existing entry
+ *    (like all zeos or all 0xFFFFs). This help scanner fail to find next match entry
+ *    and quickly back to ready status
+  */
+STATIC int cbxi_robo2_reset_arl_data(int unit)
+{
+    uint32 regval = 0;
+    uint32 field = 0;
+
+    field = 0x3;
+    SOC_REG_FIELD_SET(unit, CB_ITM_ARLFM_SCAN_DATA_PART2r_ROBO2, &regval,
+                        VALIDf, &field);
+
+    REG_WRITE_CB_ITM_ARLFM_SCAN_DATA_PART2r(unit, &regval);
+    regval = 0;
+    REG_WRITE_CB_ITM_ARLFM_SCAN_DATA_PART1r(unit, &regval);
+    REG_WRITE_CB_ITM_ARLFM_SCAN_DATA_PART0r(unit, &regval);
+
+    regval = 0xFFFFFFFF;
+    REG_WRITE_CB_ITM_ARLFM_SCAN_MASK_PART2r(unit, &regval);
+    REG_WRITE_CB_ITM_ARLFM_SCAN_MASK_PART1r(unit, &regval);
+    REG_WRITE_CB_ITM_ARLFM_SCAN_MASK_PART0r(unit, &regval);
+
+    return CBX_E_NONE;
+}
+
+/*
+ * Function:
  *    cbxi_robo2_arl_scanner_release
  * Purpose:
  *    Bring back the ARL scanner to ready state in case of scanner pause
@@ -732,6 +765,7 @@ cbxi_robo2_arl_scanner_release(int unit)
     uint32 status = 0;
     uint32 index = 0;
 
+    cbxi_robo2_reset_arl_data(unit);
     sal_memset(&arl_entry, 0, sizeof(soc_robo2_arl_scan_entry_t));
 
     /* Read arl_scan_status using arl scan function with 0 delay */
@@ -1130,7 +1164,7 @@ int cbx_l2_entry_add(cbx_l2_entry_t *l2entry)
         }
     }
 
-#if 1
+#ifndef CONFIG_PORT_EXTENDER /* Keep learning disabled in PE mode */
     /* Enable aging & learning  */
     CBX_IF_ERROR_RETURN(cbxi_arl_aging_suspend(FALSE));
     CBX_IF_ERROR_RETURN(cbxi_arl_learn_suspend(FALSE));
@@ -1179,6 +1213,12 @@ int cbx_l2_addr_remove(cbx_l2_entry_t *l2entry)
 #endif
 
         flags = CBXI_L2_MAC_MASK | CBXI_L2_VALID_MASK; /*Check for only E-CID */
+
+#ifdef CONFIG_PORT_EXTENDER
+        if (!CHECK_ECID_IS_MCAST(l2entry->params.e_cid)) {
+            CBX_IF_ERROR_RETURN(cbxi_pe_cfp_rule_remove(l2entry->params.e_cid));
+        }
+#endif
     }
 
     CBX_IF_ERROR_RETURN(cbxi_l2_l2addr_to_arl(l2entry, &arl_entry));

@@ -100,6 +100,7 @@ void m7_mpu_enable_region(uint32 region);
 void m7_mpu_disable_region(uint32 region);
 void m7_dcache_invalidate(uint32 *addr, int len);
 void m7_dcache_flush(uint32 *addr, int len);
+void m7_dcache_flush_invalidate(uint32 *addr, int len);
 void m7_dcache_invalidate_all(void);
 void m7_icache_invalidate_all(void);
 void m7_dcache_enable(void);

@@ -39,12 +39,22 @@ const char *cdiag_result[] = {
 };
 
 const char *fault_display[] = {
-    "ECD incompletei  ",
+    "ECD incomplete   ",
     "OK.Terminated    ",
     "Fault:Open       ",
     "Fault:Intra Short",
     "Fault:Inter Short",
-    "Pair busy        "
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
+    "Pair busy        ",
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
+    "Invalid / Resv   ",
 };
 
 /*

@@ -20,6 +20,7 @@
 #include <soc/robo2/common/intenum.h>
 #include <fsal/error.h>
 #include <fsal/cosq.h>
+#include <fsal/meter.h>
 #include <fsal/ts.h>
 #include <fsal_int/port.h>
 #include <fsal_int/types.h>
@@ -552,6 +553,8 @@ cbxi_cosq_flowcontrol_set(int unit, cbx_flowcontrol_t flowcontrol_mode) {
     }
     CBX_IF_ERROR_RETURN(REG_READ_CB_BMU_MTR_CONFIGr(unit, &meter_config));
 
+    entry.shp_en = 0x0;
+    entry.tc_bmp = 0x0;
     if(flowcontrol_mode == cbxFlowcontrolPause) {
         pgt_entry.fcd0 = 0;
         pgt_entry.fcd1 = 0;
@@ -586,31 +589,31 @@ cbxi_cosq_flowcontrol_set(int unit, cbx_flowcontrol_t flowcontrol_mode) {
         fval = 1;
         soc_CB_BMU_MTR_CONFIGr_field_set(unit, &meter_config,
                                        METER_ID_SELf, &fval);
-        entry.shp_en = 0x0; /* to be enabled as part of meter create */
+        entry.shp_en = 0x1;
 
     } else {
         /* cbxFlowcontrolNone */
-        fval = 1;    /* keep it same as meter..but no shaping */
+        if (cbx_meter_ctrl == cbxMeterControlPort) {
+            fval = 2;    /* keep it same as pause but no flow control */
+        } else {
+            fval = 1;    /* keep it same as meter..but no shaping */
+        }
         soc_CB_BMU_MTR_CONFIGr_field_set(unit, &meter_config,
                                        METER_ID_SELf, &fval);
-        entry.shp_en = 0x0;
-
+        entry.tc_bmp = 0xff;
     }
     /* Update MTR config with flow control mode */
     CBX_IF_ERROR_RETURN(
               REG_WRITE_CB_BMU_MTR_CONFIGr(unit, &meter_config));
 
-    if (flowcontrol_mode == cbxFlowcontrolNone) {
-        /* Enable shaping and set tc bitmap  */
-        max_index =  soc_robo2_mtr2tcb_max_index(unit);
-        if (max_index < 0) {
-            return CBX_E_INTERNAL;
-        }
-        for (index = 0; index <= max_index; index++) {
-            entry.tc_bmp = 0x0;
-            CBX_IF_ERROR_RETURN(soc_robo2_mtr2tcb_set(unit, index,
-                                                      &entry, &status));
-        }
+    /* Set shaping  and tc bitmap  */
+    max_index =  soc_robo2_mtr2tcb_max_index(unit);
+    if (max_index < 0) {
+        return CBX_E_INTERNAL;
+    }
+    for (index = 0; index <= max_index; index++) {
+        CBX_IF_ERROR_RETURN(soc_robo2_mtr2tcb_set(unit, index,
+                                                  &entry, &status));
     }
     if (flowcontrol_mode == cbxFlowcontrolPFC) {
         pfc_ctrl = 0;
@@ -1482,16 +1485,25 @@ cbxi_cosq_rate_to_bucket_encoding(cbx_cosq_shaper_params_t *shaper,
                                   uint32 *burst_size) {
     uint32  rate = 0;
     uint32  burst = 0;
+    uint32  min_burst;
     uint32  ref_val;
     int     index = 0;
 
     if (shaper->flags & CBX_COSQ_SHAPER_MODE_PACKETS) {
         burst = shaper->bits_burst;
         rate = shaper->bits_sec / 8;
+        /*
+         * For packets mode, apply a minimum burst so as to ensure that the
+         * computed burst size is sufficient to cover the requested packet rate
+         * during a single refresh interval. Note that this minimum burst size
+         * is independent of the TSF value, and thus must not be scaled.
+         */
+        min_burst = shaper->bits_sec / CBXI_COSQ_SHAPER_MAX_REFESH_RATE + 1;
     } else {
         /* convert burst from bits to bytes */
         burst = (shaper->bits_burst * 1000 / 8);
         rate = shaper->bits_sec;
+        min_burst = 0;
     }
     /* Find the scale factor and refresh_size */
     for (index = CBXI_COSQ_SHAPER_SCALE_MAX; index >=0; index--) {
@@ -1500,6 +1512,9 @@ cbxi_cosq_rate_to_bucket_encoding(cbx_cosq_shaper_params_t *shaper,
        if (ref_val < CBXI_COSQ_SHAPER_MAX_REFESH_SIZE) {
            *refresh_size = ref_val + 1;
            *burst_size = (burst / (1 << index)) + 1;
+           if (*burst_size < min_burst) {
+               *burst_size = min_burst;
+           }
            *scale = index;
            return CBX_E_NONE;
        }
@@ -1683,6 +1698,7 @@ int cbxi_cosq_admission_control_set(int unit, cbx_flowcontrol_t flowcontrol_mode
     int             port = 0;
     uint16_t        pbm_10g = PBM_10G;
     uint16_t        pbm_2p5g = PBM_2p5G;
+    cbxi_pgid_t     lpg;
 
     table_max_index = soc_robo2_gfcd_config_max_index(unit);
 
@@ -1719,40 +1735,63 @@ int cbxi_cosq_admission_control_set(int unit, cbx_flowcontrol_t flowcontrol_mode
     for ( i = 0 ; i <= table_max_index ; i++ ) {
         port = i / 8;
         /*
-         * FCD threholds for BMU buffer count of 3924 and Jumbo packet
-         * size of 9720.
+         * Bypass deactivated ports. For example, the 8 GE ports are deactivated for 53161.
+         *
          */
-        if ( (pbm_2p5g & ( 0x1 << port )) > 0 ) {
-            fcd_config.thresh0 = 253;
-            fcd_config.thresh1 = 351;
-            fcd_config.thresh2 = 351;
-            fcd_config.thresh3 = 351;
-            fcd_config.hysteresis = 39;
-        } else if ((pbm_10g & ( 0x1 << port )) > 0 ) {
-            fcd_config.thresh0 = 409;
-            fcd_config.thresh1 = 507;
-            fcd_config.thresh2 = 507;
-            fcd_config.thresh3 = 507;
-            fcd_config.hysteresis = 39;
-        } else {
-            fcd_config.thresh0 = 69;
-            fcd_config.thresh1 = 167;
-            fcd_config.thresh2 = 167;
-            fcd_config.thresh3 = 167;
-            fcd_config.hysteresis = 39;
-        }
-        fcd_config.tc_bmp = 0xff; // 1 << (i % 8);
-#ifdef CONFIG_TIMESYNC
-        fcd_config.counter_enable = 0;
+        if((PBMP_ALL(unit) & (0x1 << port)) > 0) {
+            /*
+             * FCD threholds for BMU buffer count of 3924 and Jumbo packet
+             * size of 9720.
+             */
+            if ( (pbm_2p5g & ( 0x1 << port )) > 0 ) {
+                fcd_config.thresh0 = 253;
+                fcd_config.thresh1 = 351;
+                fcd_config.thresh2 = 351;
+                fcd_config.thresh3 = 351;
+                fcd_config.hysteresis = 39;
+            } else if ((pbm_10g & ( 0x1 << port )) > 0 ) {
+                fcd_config.thresh0 = 409;
+                fcd_config.thresh1 = 507;
+                fcd_config.thresh2 = 507;
+                fcd_config.thresh3 = 507;
+                fcd_config.hysteresis = 39;
+            } else {
+#ifdef CONFIG_EXTERNAL_HOST
+                fcd_config.thresh0 = 77;
+                fcd_config.thresh1 = 175;
+                fcd_config.thresh2 = 175;
+                fcd_config.thresh3 = 175;
+                fcd_config.hysteresis = 39;
 #else
-        fcd_config.counter_enable = 1;
+                fcd_config.thresh0 = 69;
+                fcd_config.thresh1 = 167;
+                fcd_config.thresh2 = 167;
+                fcd_config.thresh3 = 167;
+                fcd_config.hysteresis = 39;
 #endif
-        if (flowcontrol_mode == cbxFlowcontrolPause) {
-            fcd_config.fc_enable = 1;
-        } else {
+            }
+            fcd_config.tc_bmp = 0xff; // 1 << (i % 8);
+#ifdef CONFIG_TIMESYNC
+            fcd_config.counter_enable = 0;
+#else
+            fcd_config.counter_enable = 1;
+#endif
             fcd_config.fc_enable = 0;
+
+#ifdef CONFIG_EXTERNAL_HOST
+            if (flowcontrol_mode == cbxFlowcontrolPause) {
+                fcd_config.fc_enable = 1;
+            } else if (flowcontrol_mode == cbxFlowcontrolPFC) {
+                fcd_config.counter_enable = 0;
+            }
+#endif
+            CBX_IF_ERROR_RETURN(cbxi_robo2_port_to_lpg(unit, port, &lpg));
+            /*
+             *  FCD_CONFIG are indexed by Source Port Group (lpg i.s.o pp)
+             *
+             */
+            CBX_IF_ERROR_RETURN(soc_robo2_fcd_config_set(unit,lpg*8 + (i%8),&fcd_config,&status));
         }
-        CBX_IF_ERROR_RETURN(soc_robo2_fcd_config_set(unit,i,&fcd_config,&status));
     }
     return CBX_E_NONE;
 }
@@ -2847,13 +2886,17 @@ cbx_cosq_flowcontrol_get(cbx_flowcontrol_t *flowcontrol_mode) {
     if (fval == 0) {
         *flowcontrol_mode = cbxFlowcontrolPFC;
     } else if(fval == 1) {
-        *flowcontrol_mode = cbxFlowcontrolMeter;
+        *flowcontrol_mode = cbxFlowcontrolNone;
         CBX_IF_ERROR_RETURN(soc_robo2_mtr2tcb_get(unit, index, &entry));
-        if ((entry.shp_en == 0) && (entry.tc_bmp == 0x0)) {
-            *flowcontrol_mode = cbxFlowcontrolNone;
+        if (entry.shp_en == 1) {
+            *flowcontrol_mode = cbxFlowcontrolMeter;
         }
     } else if(fval == 2) {
         *flowcontrol_mode = cbxFlowcontrolPause;
+        CBX_IF_ERROR_RETURN(soc_robo2_mtr2tcb_get(unit, index, &entry));
+        if (entry.tc_bmp == 0xff) {
+            *flowcontrol_mode = cbxFlowcontrolNone;
+        }
     } else {
         *flowcontrol_mode = cbxFlowcontrolNone;
     }

@@ -160,12 +160,14 @@ int main(int argc, char **argv)
             }
         }
 
+#ifdef HYBRID_M7_MODE
         /* Load M7 code */
         if (argc == 2) {
             sal_printf("Loading M7 code\n");
             load_m7_code(argv[1]);
             (void) cbx_fsal_m7_hybrid_mode_init();
         }
+#endif
 
 #ifdef INCLUDE_AVS
     sal_printf("Reading Primary Avenger OTP...\n");

@@ -968,6 +968,7 @@ int tsce_phy_interface_config_set(const phymod_phy_access_t* phy, uint32_t flags
            }
        }
    } else if (config->interface_type == phymodInterfaceKR) {
+       firmware_lane_config.LaneConfigFromPCS = 1;
        switch (config->interface_modes) {
            case 0:
                spd_intf = TEMOD_SPD_73AN_IEEE_KR_10G_FEC_ABL;
@@ -1438,7 +1439,7 @@ int _tsce_core_init_pass2(const phymod_core_access_t* core,
 #endif
        /* plldiv CONFIG */
     if (init_config->interface.data_rate  == 2500) {
-         PHYMOD_IF_ERR_RETURN(eagle_phy_pcs_12p5_vco_setup(&core_copy.access));
+         PHYMOD_IF_ERR_RETURN(eagle_phy_pcs_12p5_vco_setup(&core_copy.access, 1));
          PHYMOD_IF_ERR_RETURN(
              eagle_tsce_vco_setup(&core_copy.access, init_config->interface.ref_clock, VCO_12p5));
     } else {

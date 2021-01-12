@@ -63,6 +63,8 @@
 #include "viper_pmd_cfg_seq.h"
 #include <phymod/chip/bcmi_viper_xgxs_defs.h>
 
+/* It is for reference and might need hardware pin connection to work */
+//#define BOARD_WITH_SFP2_LOS
 
 int viper_prbs_lane_inv_data_get (PHYMOD_ST *pa,
                                   uint8_t    lane_num,
@@ -667,6 +669,9 @@ int viper_pll_enable_forced_10G(PHYMOD_ST *pa)
 
 int viper_pll_afe_config_refclk156_6p25Ghz (PHYMOD_ST *pa)
 {
+    DIG_MISC1r_t      misc1;
+    DIG_MISC1r_CLR(misc1);
+
     /* PLL AFE Programming */
     PLL_AFE_CTL0r_t pll_afectrl0;
     PLL_AFE_CTL1r_t pll_afectrl1;
@@ -714,6 +719,9 @@ int viper_pll_afe_config_refclk156_6p25Ghz (PHYMOD_ST *pa)
     //PLL_AFE_CTL4r_SET(pll_afectrl4, 0x8821); /* Provided in Doc, not clear */
     PLL_AFE_CTL4r_SET(pll_afectrl4, 0x0821);
     WRITE_PLL_AFE_CTL4r(pa, pll_afectrl4);
+
+    DIG_MISC1r_REFCLK_SELf_SET (misc1, VIPER_MISC1_CLK_156p25M);
+    MODIFY_DIG_MISC1r(pa, misc1);
     return PHYMOD_E_NONE;
 }
 
@@ -832,7 +840,7 @@ static int viper_sgmii_force_2p5G (PHYMOD_ST *pa)
  * viper_sgmii_force_speed
  *
  * Set SGMII Mode   0x8300: 0x0100 (four)
- * Set 10M & Dis AN 0x0000: 0x0100 (one)
+ * Set Speed & Dis AN 0x0000: 0x0100 (one)
  * Set OS 5 Mode    0x834A: 0x0003 (four)
  *
  */
@@ -852,25 +860,22 @@ static int viper_sgmii_force_speed (PHYMOD_ST *pa, uint8_t speed)
     MIICTLr_CLR(miictrl);
     DIG_MISC8r_CLR(misc8);
 
-    /* Bit 0 is SGMII Mode */
+    /*enable comma detection*/
     DIG_CTL1000X1r_COMMA_DET_ENf_SET(x1reg, 1);
+    /* Bit 0 is SGMII Mode */
     DIG_CTL1000X1r_FIBER_MODE_1000Xf_SET(x1reg,0);
     MODIFY_DIG_CTL1000X1r(pa, x1reg);
 
-    /* Set 10M, Dis AN */
+    /* Set Speed, Dis AN */
     MIICTLr_AUTONEG_ENABLEf_SET(miictrl, 0);
     MIICTLr_MANUAL_SPEED0f_SET (miictrl, speed&0x1);
     MIICTLr_MANUAL_SPEED1f_SET (miictrl, speed&0x2?1:0);
     MIICTLr_FULL_DUPLEXf_SET   (miictrl, 1);
     WRITE_MIICTLr(pa, miictrl);
 
-#if (CONFIG_SGMII_SPEED == 2500)
     /* Set os5 mode */
     DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX5);
-#else
-    /* Set os4 mode */
-    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX4);
-#endif
+
     WRITE_DIG_MISC8r(pa, misc8);
 
     return PHYMOD_E_NONE;
@@ -935,6 +940,10 @@ int viper_fiber_force_100FX (PHYMOD_ST *pa)
     FX100_CTL1r_t     fxctrl;
     FX100_CTL2r_t     ctrl2;
     FX100_CTL3r_t     ctrl3;
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_t sigdet;
+#endif
+    RX_AFE_CTL5r_t    afe_ctrl5;
 
     /* Clear Registers */
     DIG_CTL1000X1r_CLR(x1reg);
@@ -942,25 +951,36 @@ int viper_fiber_force_100FX (PHYMOD_ST *pa)
     FX100_CTL2r_CLR(ctrl2);
     FX100_CTL3r_CLR(ctrl3);
     DIG_MISC8r_CLR(misc8);
-
-#ifdef CONFIG_1000X_1000
-    viper_pll_afe_config_refclk156(pa);
-#else
-    viper_pll_afe_config_refclk156_6p25Ghz(pa);
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_CLR(sigdet);
 #endif
+    RX_AFE_CTL5r_CLR(afe_ctrl5);
+
+    viper_pll_afe_config_refclk156_6p25Ghz(pa);
 
     /* Bit 0 is Fiber Mode */
     DIG_CTL1000X1r_FIBER_MODE_1000Xf_SET(x1reg, 1);
-    /*DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 1);*/
+#ifdef BOARD_WITH_SFP2_LOS
+    DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 1);
+    DIG_CTL1000X1r_INVERT_SIGNAL_DETECTf_SET(x1reg, 1);
+#endif
     DIG_CTL1000X1r_COMMA_DET_ENf_SET(x1reg, 0);
     MODIFY_DIG_CTL1000X1r(pa, x1reg);
 
-    /* Set os4 mode */
-#ifdef CONFIG_1000X_1000
-    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX4);
-#else
-    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX5);
+#ifdef BOARD_WITH_SFP2_LOS
+    /* Enable signal detection */
+    RX_AFE_ANARXSIGDETr_EXT_SIGDET_EN_SMf_SET(sigdet ,1);
+    RX_AFE_ANARXSIGDETr_CX4_SIGDET_EN_SMf_SET(sigdet ,1);
+    MODIFY_RX_AFE_ANARXSIGDETr(pa, sigdet);
 #endif
+
+    /* Adjust threshold of Signal detection */
+    RX_AFE_CTL5r_SIGDET_THRESHOLDf_SET(afe_ctrl5, 0xd);
+    MODIFY_RX_AFE_CTL5r(pa, afe_ctrl5);
+
+    /* Set os5 mode */
+    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX5);
+
     MODIFY_DIG_MISC8r(pa, misc8);
 
     /* Set FX Mode, Disable Idle Correlator */
@@ -994,24 +1014,42 @@ int viper_fiber_force_1G (PHYMOD_ST *pa)
     DIG_CTL1000X1r_t  x1reg;
     MIICTLr_t         miictrl;
     DIG_MISC8r_t      misc8;
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_t sigdet;
+#endif
+    RX_AFE_CTL5r_t    afe_ctrl5;
 
     /* Clear Registers */
     DIG_CTL1000X1r_CLR(x1reg);
     MIICTLr_CLR(miictrl);
     DIG_MISC8r_CLR(misc8);
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_CLR(sigdet);
+#endif
+    RX_AFE_CTL5r_CLR(afe_ctrl5);
 
     /* Set PLL Freq  */
-#ifndef CONFIG_1000X_1000
     viper_pll_afe_config_refclk156_6p25Ghz(pa);
-#else
-    viper_pll_afe_config_refclk156(pa);
-#endif
 
     /* Bit 0 is Fiber Mode */
     DIG_CTL1000X1r_FIBER_MODE_1000Xf_SET(x1reg, 1);
-    /*DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 1);*/
+#ifdef BOARD_WITH_SFP2_LOS
+    DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 0);
+    DIG_CTL1000X1r_INVERT_SIGNAL_DETECTf_SET(x1reg, 0);
+#endif
     DIG_CTL1000X1r_COMMA_DET_ENf_SET(x1reg, 1);
     MODIFY_DIG_CTL1000X1r(pa, x1reg);
+
+#ifdef BOARD_WITH_SFP2_LOS
+    /* Reset signal detection */
+    RX_AFE_ANARXSIGDETr_CX4_SIGDET_EN_SMf_SET(sigdet ,1);
+    RX_AFE_ANARXSIGDETr_EXT_SIGDET_EN_SMf_SET(sigdet ,0);
+    MODIFY_RX_AFE_ANARXSIGDETr(pa, sigdet);
+#endif
+
+    /* Reset threshold of Signal detection */
+    RX_AFE_CTL5r_SIGDET_THRESHOLDf_SET(afe_ctrl5, 0xe);
+    MODIFY_RX_AFE_CTL5r(pa, afe_ctrl5);
 
     /* Set 1G, Dis AN */
     MIICTLr_AUTONEG_ENABLEf_SET(miictrl, 0);
@@ -1020,12 +1058,9 @@ int viper_fiber_force_1G (PHYMOD_ST *pa)
     MIICTLr_FULL_DUPLEXf_SET   (miictrl, 1);
     MODIFY_MIICTLr(pa, miictrl);
 
-    /* Set os4 mode */
-#ifdef CONFIG_1000X_1000
-    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX4);
-#else
+    /* Set os5 mode */
     DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX5);
-#endif
+
     MODIFY_DIG_MISC8r(pa, misc8);
 
     return PHYMOD_E_NONE;
@@ -1044,11 +1079,19 @@ int viper_fiber_force_2p5G (PHYMOD_ST *pa)
     DIG_CTL1000X1r_t  x1reg;
     DIG_MISC1r_t      misc1;
     DIG_MISC8r_t      misc8;
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_t sigdet;
+#endif
+    RX_AFE_CTL5r_t    afe_ctrl5;
 
     /* Clear Registers */
     DIG_CTL1000X1r_CLR(x1reg);
     DIG_MISC1r_CLR(misc1);
     DIG_MISC8r_CLR(misc8);
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_CLR(sigdet);
+#endif
+    RX_AFE_CTL5r_CLR(afe_ctrl5);
 
     /* Set PLL Freq to 6.25Ghz */
     viper_pll_afe_config_refclk156_6p25Ghz(pa);
@@ -1059,11 +1102,24 @@ int viper_fiber_force_2p5G (PHYMOD_ST *pa)
 
     /* Bit 0 is Fiber Mode */
     DIG_CTL1000X1r_FIBER_MODE_1000Xf_SET(x1reg, 1);
-    /*DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 1);*/
+#ifdef BOARD_WITH_SFP2_LOS
+    DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 0);
+    DIG_CTL1000X1r_INVERT_SIGNAL_DETECTf_SET(x1reg, 0);
+#endif
     DIG_CTL1000X1r_COMMA_DET_ENf_SET(x1reg, 1);
     MODIFY_DIG_CTL1000X1r(pa, x1reg);
 
-    DIG_MISC1r_REFCLK_SELf_SET (misc1, VIPER_MISC1_CLK_156p25M); /* clk_156.25Mhz */
+#ifdef BOARD_WITH_SFP2_LOS
+    /* Reset signal detection */
+    RX_AFE_ANARXSIGDETr_CX4_SIGDET_EN_SMf_SET(sigdet ,1);
+    RX_AFE_ANARXSIGDETr_EXT_SIGDET_EN_SMf_SET(sigdet ,0);
+    MODIFY_RX_AFE_ANARXSIGDETr(pa, sigdet);
+#endif
+
+    /* Reset threshold of Signal detection */
+    RX_AFE_CTL5r_SIGDET_THRESHOLDf_SET(afe_ctrl5, 0xe);
+    MODIFY_RX_AFE_CTL5r(pa, afe_ctrl5);
+
     DIG_MISC1r_FORCE_SPEEDf_SET(misc1, VIPER_MISC1_2500BRCM_X1);  /* 2500BRCM_X1 */
 
     MODIFY_DIG_MISC1r(pa, misc1);
@@ -1111,7 +1167,7 @@ static int viper_fiber_force_speed (PHYMOD_ST *pa, uint8_t speed)
 
     /* Bit 0 is Fiber Mode */
     DIG_CTL1000X1r_FIBER_MODE_1000Xf_SET(x1reg, 1);
-    DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 1);
+    /*DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 1);*/
     DIG_CTL1000X1r_COMMA_DET_ENf_SET(x1reg, 1);
     MODIFY_DIG_CTL1000X1r(&pa_copy, x1reg);
 
@@ -1165,39 +1221,63 @@ int viper_fiber_force_10G_CX4 (PHYMOD_ST *pa)
 /*
  * viper_fiber_AN_1G
  *
- * Set Fiber Mode     0x8300: 0x0141
+ * Set Fiber Mode     0x8300: 0x0151
  * Set OS 5 Mode      0x834A: 0x0003
- * Set 1G             0x8000: 0x1140
+ * Set 1G             0x0000: 0x1140
  *
  */
 int viper_fiber_AN_1G (PHYMOD_ST *pa)
 {
     DIG_CTL1000X1r_t  x1reg;
+    DIG_CTL1000X2r_t  x2reg;
     DIG_MISC8r_t      misc8;
     MIICTLr_t         miictrl;
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_t sigdet;
+#endif
+    RX_AFE_CTL5r_t    afe_ctrl5;
 
     /* Clear Registers */
     DIG_CTL1000X1r_CLR(x1reg);
+    DIG_CTL1000X2r_CLR(x2reg);
     DIG_MISC8r_CLR(misc8);
     MIICTLr_CLR(miictrl);
-#ifndef CONFIG_1000X_1000
-    viper_pll_afe_config_refclk156_6p25Ghz(pa);
-#else
-    viper_pll_afe_config_refclk156(pa);
+#ifdef BOARD_WITH_SFP2_LOS
+    RX_AFE_ANARXSIGDETr_CLR(sigdet);
 #endif
+    RX_AFE_CTL5r_CLR(afe_ctrl5);
+
+    viper_pll_afe_config_refclk156_6p25Ghz(pa);
+
     /* Fiber Mode, sig det, dis pll pwrdn, comma det */
     DIG_CTL1000X1r_FIBER_MODE_1000Xf_SET(x1reg, 1);
-    /*DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 1);*/
+#ifdef BOARD_WITH_SFP2_LOS
+    DIG_CTL1000X1r_SIGNAL_DETECT_ENf_SET(x1reg, 0);
+    DIG_CTL1000X1r_INVERT_SIGNAL_DETECTf_SET(x1reg, 0);
+#endif
+    DIG_CTL1000X1r_AUTODET_ENf_SET(x1reg, 1);
     DIG_CTL1000X1r_DISABLE_PLL_PWRDWNf_SET(x1reg, 1);
     DIG_CTL1000X1r_COMMA_DET_ENf_SET(x1reg, 1);
     MODIFY_DIG_CTL1000X1r(pa, x1reg);
 
-    /* Set os4 mode */
-#ifdef CONFIG_1000X_1000
-    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX4);
-#else
-    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX5);
+#ifdef BOARD_WITH_SFP2_LOS
+    /* Reset signal detection */
+    RX_AFE_ANARXSIGDETr_CX4_SIGDET_EN_SMf_SET(sigdet ,1);
+    RX_AFE_ANARXSIGDETr_EXT_SIGDET_EN_SMf_SET(sigdet ,0);
+    MODIFY_RX_AFE_ANARXSIGDETr(pa, sigdet);
 #endif
+
+    /* Reset threshold of Signal detection */
+    RX_AFE_CTL5r_SIGDET_THRESHOLDf_SET(afe_ctrl5, 0xe);
+    MODIFY_RX_AFE_CTL5r(pa, afe_ctrl5);
+
+    /* Enable parallel detection */
+    DIG_CTL1000X2r_ENABLE_PARALLEL_DETECTIONf_SET(x2reg, 1);
+    MODIFY_DIG_CTL1000X2r(pa, x2reg);
+
+    /* Set os5 mode */
+    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX5);
+
     MODIFY_DIG_MISC8r(pa, misc8);
 
     /* AN, FD, 1G */
@@ -1237,8 +1317,8 @@ static int viper_sgmii_aneg_speed (const PHYMOD_ST *pa, uint8_t master, uint8_t 
 
     MODIFY_DIG_CTL1000X1r(pa, x1reg);
 
-    /* Set os4 mode */
-    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX4);
+    /* Set os5 mode */
+    DIG_MISC8r_FORCE_OSCDR_MODEf_SET(misc8, VIPER_MISC8_OSDR_MODE_OSX5);
     MODIFY_DIG_MISC8r(pa, misc8);
 
     /* AN, FD, 100M */
@@ -2171,7 +2251,7 @@ int viper_set_spd_intf(PHYMOD_ST *pa, viper_spd_intfc_type_t type)
             PHYMOD_IF_ERR_RETURN(viper_sgmii_aneg_10M(pa));
             break;
         case VIPER_SPD_AN_SGMII_S_10M_100M_1G:
-            PHYMOD_IF_ERR_RETURN(viper_fiber_force_speed(pa, VIPER_MISC1_10GBASE_CX4));
+            PHYMOD_IF_ERR_RETURN(viper_sgmii_aneg_speed (pa, 0, VIPER_SPD_1000_SGMII));
             break;
         default:
             PHYMOD_IF_ERR_RETURN(viper_fiber_force_1G(pa));

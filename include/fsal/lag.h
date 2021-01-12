@@ -69,7 +69,6 @@ extern "C" {
 typedef enum cbx_lag_mode_e {
     cbxLagModeNormal,
     cbxLagModeCascade,
-    cbxLagModeShared, /* Shared LAG used in PE mode */
 } cbx_lag_mode_t;
 
 /**

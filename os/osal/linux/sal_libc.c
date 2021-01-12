@@ -723,17 +723,17 @@ uint64_t sal_strtoull(const char *nptr, const char **endptr, int base)
  * Parameters:
  *    c - character to check
  * Returns:
- *    0 if the character is alpha-numeric, non-zero otherwise.
+ *    1 if the character is alpha-numeric, 0 otherwise.
  */
-int sal_isalnum(const char c)
+int sal_isalnum(int c)
 {
     if (((c >= '0') && (c <= '9')) ||
         ((c >= 'a') && (c <= 'z')) ||
         ((c >= 'A') && (c <= 'Z')))
     {
-        return 0;
-    } else {
         return 1;
+    } else {
+        return 0;
     }
 }
 

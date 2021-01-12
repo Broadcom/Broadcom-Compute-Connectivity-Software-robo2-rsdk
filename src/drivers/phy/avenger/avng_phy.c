@@ -14,6 +14,7 @@
 #include <sal_console.h>
 #include <sal_alloc.h>
 #include <sal_time.h>
+#include <sal_sync.h>
 #include "avng_miim.h"
 #include <cdk/cdk_symbols.h>
 #include "avng_phy_ctrl.h"
@@ -25,7 +26,6 @@
 #include <drv_if.h>
 #include <common/memregs.h>
 #include <fsal/port.h>
-#include <avng_phy.h>
 #ifdef CONFIG_8488X
 #include <bcm8488x.h>
 #endif
@@ -50,20 +50,25 @@ extern phy_bus_t phy_bus_avng_miim_ext;
 
 static phy_bus_t *avng_phy_bus[] = {
     &phy_bus_avng_miim_int,
+#ifdef CONFIG_EXT_PHY
     &phy_bus_avng_miim_ext,
+#endif
     NULL
 };
 
 extern phy_driver_t bcm_gphy_drv;
 extern phy_driver_t bcmi_viper_xgxs_drv;
 extern phy_driver_t bcmi_tsce_xgxs_drv;
+#ifdef CONFIG_EXT_PHY
 extern phy_driver_t bcm542xx_drv;
-
+#endif
 phy_driver_t *avng_phy_drv_list[] = {
     &bcm_gphy_drv,
     &bcmi_viper_xgxs_drv,
     &bcmi_tsce_xgxs_drv,
+#ifdef CONFIG_EXT_PHY
     &bcm542xx_drv,
+#endif
     NULL
 };
 
@@ -72,6 +77,19 @@ phy_driver_t *avng_phy_drv_list[] = {
 
 static uint32_t phy_external_mode = 0;
 avng_phy_info_t avng_phy_info[SOC_MAX_NUM_SWITCH_DEVICES];
+
+/*
+ * There are multiple threads that each want to access PHY registers. However,
+ * such accesses are themselves not atomic, so only one actual access can be
+ * performed at once. Therefore, protect all potentially concurrent accesses
+ * with a mutex. The same bus is used for multiple ports, so the mutex is
+ * global for now. In the future, we may allow some forms of concurrency (e.g.,
+ * based on port type) if desired--hence the unused 'pc' parameter.
+ */
+static sal_mutex_t avng_phy_mutex = NULL;
+
+#define PHY_LOCK(pc)   sal_mutex_take(avng_phy_mutex, sal_mutex_FOREVER)
+#define PHY_UNLOCK(pc) sal_mutex_give(avng_phy_mutex)
 
 int phy_debug = 0;
 void phy_debug_set(int enable)
@@ -163,6 +181,9 @@ avng_phy_probe_default(int unit, int lport, phy_driver_t **phy_drv)
     phy_ctrl_t pc_probe;
     phy_ctrl_t *pc;
     int rv;
+#ifdef CONFIG_EXT_PHY
+    phy_ctrl_t *pc_added;
+#endif
     /* Remove any existing PHYs on this lport */
     while ((pc = avng_phy_del(unit, lport)) != 0) {
         phy_ctrl_free(pc);
@@ -178,6 +199,16 @@ avng_phy_probe_default(int unit, int lport, phy_driver_t **phy_drv)
     if (bus == NULL) {
         return CDK_E_CONFIG;
     }
+
+    /* Before creating any PHY objects, initialize the global mutex. */
+    if (avng_phy_mutex == NULL) {
+        avng_phy_mutex = sal_mutex_create("avng_phy");
+        if (avng_phy_mutex == NULL) {
+            sal_printf("avng_phy: unable to allocate mutex\n");
+            return CDK_E_RESOURCE;
+        }
+    }
+
     /* Loop over PHY buses for this lport */
     while (*bus != NULL) {
         drv = phy_drv;
@@ -190,6 +221,17 @@ avng_phy_probe_default(int unit, int lport, phy_driver_t **phy_drv)
             pc->port = lport;
             pc->bus = *bus;
             pc->drv = *drv;
+#ifdef CONFIG_EXT_PHY
+            /* check if already PHY driver is attached on internal bus, if yes
+             * do not probe on external bus */
+            pc_added = AVNG_PORT_PHY_CTRL(unit, lport);
+            if (pc_added) {
+                if (!sal_strcmp(pc_added->drv->drv_name, pc->drv->drv_name)) {
+                    drv++;
+                    continue;
+                }
+            }
+#endif
             if (CDK_SUCCESS(PHY_PROBE(pc))) {
                 /* Found known PHY on bus */
                 pc = phy_ctrl_alloc(unit);
@@ -277,9 +319,13 @@ avng_phy_reg_read(uint8_t unit, uint8_t lport, uint32_t reg_addr, uint32_t *p_va
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
     if (lport < 8) {
+        PHY_LOCK(pc);
         rv = PHY_BUS_READ(pc, (uint32_t)reg_addr, &value);
+        PHY_UNLOCK(pc);
     } else if (lport < 14) {
+        PHY_LOCK(pc);
         rv = PHY_REG_READ(pc, reg_addr, &value);
+        PHY_UNLOCK(pc);
     } else {
         return SYS_ERR_PARAMETER;
     }
@@ -317,9 +363,13 @@ avng_phy_reg_write(uint8_t unit, uint8_t lport, uint32_t reg_addr, uint32_t valu
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
     if (lport < 8) {
+        PHY_LOCK(pc);
         rv = PHY_BUS_WRITE(pc, (uint32_t)reg_addr, value);
+        PHY_UNLOCK(pc);
     } else if (lport < 14) {
+        PHY_LOCK(pc);
         rv = PHY_REG_WRITE(pc, reg_addr, value);
+        PHY_UNLOCK(pc);
     } else {
         return SYS_ERR_PARAMETER;
     }
@@ -356,7 +406,9 @@ avng_phy_duplex_set(int unit, uint8_t lport, uint32_t value)
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_DUPLEX_SET(pc, value);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -391,7 +443,9 @@ avng_phy_duplex_get(int unit, uint8_t lport, uint32_t *value)
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_DUPLEX_GET(pc, (int *)value);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -423,7 +477,7 @@ void avng_interface_speed_set(int unit, uint8_t port) {
         case 9:
         case 10:
         case 11:
-#if defined(CONFIG_1000X_1000) || (CONFIG_SGMII_SPEED == 1000) || defined(CONFIG_QSGMII_PHY)
+#if defined(CONFIG_1000X_1000) || (CONFIG_SGMII_SPEED == 1000) || defined(CONFIG_QSGMII)
             speed = 1000;
 #else
             speed = 2500;
@@ -610,7 +664,9 @@ avng_phy_speed_set(int unit, uint8_t lport, uint32_t value)
 
     if ((lport == 12) || (lport == 13)) {
         pc = AVNG_PORT_PHY_CTRL(unit, 12);
+        PHY_LOCK(pc);
         rv = PHY_SPEED_GET(pc, &speed_0);
+        PHY_UNLOCK(pc);
         if (rv == SYS_OK) {
             if ((speed_0 == 100) || (speed_0 == 1000) || (speed_0 == 10000)) {
                 vco_5_0 = 1;
@@ -619,7 +675,9 @@ avng_phy_speed_set(int unit, uint8_t lport, uint32_t value)
             }
         }
         pc1 = AVNG_PORT_PHY_CTRL(unit, 13);
+        PHY_LOCK(pc1);
         rv = PHY_SPEED_GET(pc1, &speed_1);
+        PHY_UNLOCK(pc1);
         if (rv == SYS_OK) {
             if ((speed_1 == 100) || (speed_1 == 1000) || (speed_1 == 10000)) {
                 vco_5_1 = 1;
@@ -644,7 +702,9 @@ avng_phy_speed_set(int unit, uint8_t lport, uint32_t value)
     if (rv == SYS_OK) {
         pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+        PHY_LOCK(pc);
         rv = PHY_SPEED_SET(pc, value);
+        PHY_UNLOCK(pc);
         pc->speed = value;
     }
     if (!rv) {
@@ -680,7 +740,9 @@ avng_phy_speed_get(int unit, uint8_t lport, uint32_t *value)
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_SPEED_GET(pc, value);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -714,7 +776,9 @@ avng_phy_link_get(int unit, uint8_t lport, uint32_t *link_status)
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_LINK_GET(pc, (int *)link_status, &an);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -747,7 +811,9 @@ avng_phy_loopback_set(int unit, uint8_t lport, uint32_t enable)
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_LOOPBACK_SET(pc, enable);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -779,7 +845,9 @@ avng_phy_loopback_get(int unit, uint8_t lport, uint32_t *status)
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_LOOPBACK_GET(pc, (int *)status);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -819,7 +887,9 @@ avng_phy_autoneg_set(int unit, uint8_t lport, uint32_t an)
 
     if ((lport == 12) || (lport == 13)) {
         pc = AVNG_PORT_PHY_CTRL(unit, 12);
+        PHY_LOCK(pc);
         rv = PHY_SPEED_GET(pc, &speed_0);
+        PHY_UNLOCK(pc);
         if (rv == SYS_OK) {
             if ((speed_0 == 100) || (speed_0 == 1000) || (speed_0 == 10000)) {
                 vco_5_0 = 1;
@@ -828,7 +898,9 @@ avng_phy_autoneg_set(int unit, uint8_t lport, uint32_t an)
             }
         }
         pc1 = AVNG_PORT_PHY_CTRL(unit, 13);
+        PHY_LOCK(pc1);
         rv = PHY_SPEED_GET(pc1, &speed_1);
+        PHY_UNLOCK(pc1);
         if (rv == SYS_OK) {
             if ((speed_1 == 100) || (speed_1 == 1000) || (speed_1 == 10000)) {
                 vco_5_1 = 1;
@@ -850,7 +922,9 @@ avng_phy_autoneg_set(int unit, uint8_t lport, uint32_t an)
     }
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_AUTONEG_SET(pc, an);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -883,7 +957,9 @@ avng_phy_autoneg_get(int unit, uint8_t lport, uint32_t *an)
 
     pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
+    PHY_LOCK(pc);
     rv = PHY_AUTONEG_GET(pc, (int *)an);
+    PHY_UNLOCK(pc);
 
     if (!rv) {
         return SYS_OK;
@@ -1247,7 +1323,9 @@ avng_phy_init_with_speed(int unit, uint8_t lport,uint32_t speed)
         pc->speed = speed;
         PHY_CTRL_INTF(pc) = phymodInterfaceXFI;
         if (CDK_SUCCESS(rv)) {
+            PHY_LOCK(pc);
             rv = PHY_INIT(AVNG_PORT_PHY_CTRL(unit, lport));
+            PHY_UNLOCK(pc);
         }
         if (CDK_SUCCESS(rv) && phy_init_cb) {
             rv = phy_init_cb(AVNG_PORT_PHY_CTRL(unit, lport));
@@ -1274,7 +1352,9 @@ avng_phy_init(int unit, uint8_t lport)
     }
     if (AVNG_PORT_PHY_CTRL(unit, lport)) {
         if (CDK_SUCCESS(rv)) {
+            PHY_LOCK(pc);
             rv = PHY_INIT(AVNG_PORT_PHY_CTRL(unit, lport));
+            PHY_UNLOCK(pc);
         }
         if (CDK_SUCCESS(rv) && phy_init_cb) {
             rv = phy_init_cb(AVNG_PORT_PHY_CTRL(unit, lport));
@@ -1325,8 +1405,10 @@ avng_phy_mode_set(int unit, uint8_t lport, char *name, int mode, int enable)
         }
         switch (mode) {
         case AVNG_PHY_MODE_WAN:
+            PHY_LOCK(pc);
             rv = PHY_CONFIG_SET(pc, PhyConfig_Mode,
                                 enable ? PHY_MODE_WAN : PHY_MODE_LAN, NULL);
+            PHY_UNLOCK(pc);
             if (!enable && rv == CDK_E_UNAVAIL) {
                 rv = CDK_E_NONE;
             }
@@ -1374,7 +1456,9 @@ avng_phy_fw_base_set(int unit, uint8_t lport, char *name, uint32_t fw_base)
             pc = pc->next;
             continue;
         }
+        PHY_LOCK(pc);
         rv = PHY_CONFIG_SET(pc, PhyConfig_RamBase, fw_base, NULL);
+        PHY_UNLOCK(pc);
         if (rv == CDK_E_UNAVAIL) {
             rv = CDK_E_NONE;
         }
@@ -1468,7 +1552,9 @@ avng_phy_ability_set(int unit, uint8_t lport, char *name, int ability)
 
         phy_abil |= (PHY_ABIL_PAUSE_TX | PHY_ABIL_PAUSE_RX);
 
+        PHY_LOCK(pc);
         rv = PHY_CONFIG_SET(pc, PhyConfig_AdvLocal, phy_abil, NULL);
+        PHY_UNLOCK(pc);
         if (rv == CDK_E_UNAVAIL) {
             rv = CDK_E_NONE;
         }
@@ -1484,8 +1570,10 @@ avng_phy_eee_set(int unit, uint8_t lport, uint32 mode)
         uint32_t eee_mode = PHY_EEE_NONE;
         int rv;
         eee_mode = mode;
+        PHY_LOCK(pc);
         rv = PHY_CONFIG_SET(AVNG_PORT_PHY_CTRL(unit, lport),
                             PhyConfig_EEE, eee_mode, NULL);
+        PHY_UNLOCK(pc);
         if (mode == PHY_EEE_NONE && rv == CDK_E_UNAVAIL) {
             rv = CDK_E_NONE;
         }
@@ -1501,8 +1589,10 @@ avng_phy_eee_get(int unit, uint8_t lport, uint32 *mode)
     uint32_t eee_mode = 0;
 
     if (AVNG_PORT_PHY_CTRL(unit, lport)) {
+        PHY_LOCK(pc);
         int rv = PHY_CONFIG_GET(AVNG_PORT_PHY_CTRL(unit, lport),
                                 PhyConfig_EEE, &eee_mode, NULL);
+        PHY_UNLOCK(pc);
         if (CDK_FAILURE(rv) && rv != CDK_E_UNAVAIL) {
             return rv;
         }
@@ -1740,15 +1830,19 @@ phy_pause_get(uint8_t unit, uint8_t lport, uint8_t *tx_pause, uint8_t *rx_pause)
 
     if (PHY_EXTERNAL_MODE(lport)) {
         if (!sal_strcmp(pc->drv->drv_name,"bcm542xx")) {
+            PHY_LOCK(pc);
             rv = PHY_CONFIG_GET(AVNG_PORT_PHY_CTRL(unit, lport),
                                PhyConfig_AdvRemote, &ability, NULL);
+            PHY_UNLOCK(pc);
         }
     } else {
         if (!sal_strcmp(pc->drv->drv_name,"bcmi_tsce_xgxs") ||
             !sal_strcmp(pc->drv->drv_name,"bcmi_viper_xgxs")) {
             /* Assume CL73 AN Bit[11:10] */
+            PHY_LOCK(pc);
             rv = PHY_CONFIG_GET(AVNG_PORT_PHY_CTRL(unit, lport),
                                PhyConfig_AdvRemote, &ability, NULL);
+            PHY_UNLOCK(pc);
 
         } else {
             return -4; /* SYS_ERR_PARAMETER */

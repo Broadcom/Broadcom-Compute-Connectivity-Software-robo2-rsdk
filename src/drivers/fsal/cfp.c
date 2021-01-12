@@ -11,6 +11,7 @@
  * *     Robo2 CFP(ACL) module.
  * *
  * */
+#include <fsal_int/slic.h>
 #include <fsal_int/cfp.h>
 
 
@@ -29,6 +30,8 @@ uint32_t   l2_v4_rule_attr_bmp_0;
 uint32_t   l2_v4_rule_attr_bmp_1;
 uint32_t   udf_rule_attr_bmp_0;
 uint32_t   udf_rule_attr_bmp_1;
+uint32_t   etag_rule_attr_bmp_0;
+uint32_t   etag_rule_attr_bmp_1;
 uint32_t   tcam_index_info[CBXI_CFP_CFP_RULE_MAX + 1] = {0};
 
 static cbxi_cfp_rule_attribute_info_t cfp_rule_attr_info[] = {
@@ -67,6 +70,9 @@ static cbxi_cfp_rule_attribute_info_t cfp_rule_attr_info[] = {
     { 0x04, 16,  0, 0xFFFF }, /* cbxCfpRuleAttrDestIp6 */
     { 0x04, 8,   0, 0xFFFF }, /* cbxCfpRuleAttrDestIp6High */
     { 0x04, 8,   0, 0xFFFF }, /* cbxCfpRuleAttrDestIp6Low */
+    { 0x20, 2,   0, 0xFFF  }, /* cbxCfpRuleAttrEtagICID */
+    { 0x20, 2,   0, 0xFFF  }, /* cbxCfpRuleAttrEtagECID */
+    { 0x20, 1,   0, 0xF    }, /* cbxCfpRuleAttrEtagGRP  */
     { 0x10, 8,   0, 0xFFFF }, /* cbxCfpRuleAttrUDF0 */
     { 0x10, 8,   0, 0xFFFF }, /* cbxCfpRuleAttrUDF1 */
     { 0x10, 4,   0, 0xFFFF }, /* cbxCfpRuleAttrUDF2 */
@@ -112,6 +118,9 @@ char *cfp_rule_attr_names[] = {
       "DestIp6",
       "DestIp6High",
       "DestIp6Low",
+      "EtagICID",
+      "EtagECID",
+      "EtagGRP",
       "UDF0",
       "UDF1",
       "UDF2",
@@ -156,6 +165,9 @@ cbxi_cfp_rule_field_info_t  cfp_l2_rule_field_info[cbxCfpRuleAttrMax + 1] = {
     {  0,  0 }, /* cbxCfpRuleAttrDestIp6 */
     {  0,  0 }, /* cbxCfpRuleAttrDestIp6High */
     {  0,  0 }, /* cbxCfpRuleAttrDestIp6Low */
+    {  0,  0 }, /* cbxCfpRuleAttrEtagICID */
+    {  0,  0 }, /* cbxCfpRuleAttrEtagECID */
+    {  0,  0 }, /* cbxCfpRuleAttrEtagGRP */
     {  0,  0 }, /* cbxCfpRuleAttrUDF0 */
     {  0,  0 }, /* cbxCfpRuleAttrUDF1 */
     {  0,  0 }, /* cbxCfpRuleAttrUDF2 */
@@ -201,6 +213,9 @@ cbxi_cfp_rule_field_info_t  cfp_ipv4_rule_field_info[cbxCfpRuleAttrMax + 1] = {
     {  0,  0  }, /* cbxCfpRuleAttrDestIp6 */
     {  0,  0  }, /* cbxCfpRuleAttrDestIp6High */
     {  0,  0  }, /* cbxCfpRuleAttrDestIp6Low */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagICID */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagECID */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagGRP */
     {  0,  0  }, /* cbxCfpRuleAttrUDF0 */
     {  0,  0  }, /* cbxCfpRuleAttrUDF1 */
     {  0,  0  }, /* cbxCfpRuleAttrUDF2 */
@@ -246,6 +261,9 @@ cbxi_cfp_rule_field_info_t  cfp_ipv6_rule_field_info[cbxCfpRuleAttrMax + 1] = {
     { 128,253 }, /* cbxCfpRuleAttrDestIp6 */
     { 64, 317 }, /* cbxCfpRuleAttrDestIp6High */
     { 64, 253 }, /* cbxCfpRuleAttrDestIp6Low */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagICID */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagECID */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagGRP */
     {  0,  0  }, /* cbxCfpRuleAttrUDF0 */
     {  0,  0  }, /* cbxCfpRuleAttrUDF1 */
     {  0,  0  }, /* cbxCfpRuleAttrUDF2 */
@@ -292,6 +310,9 @@ cbxi_cfp_rule_field_info_t
     {  0,  0 }, /* cbxCfpRuleAttrDestIp6 */
     {  0,  0 }, /* cbxCfpRuleAttrDestIp6High */
     {  0,  0 }, /* cbxCfpRuleAttrDestIp6Low */
+    {  0,  0 }, /* cbxCfpRuleAttrEtagICID */
+    {  0,  0 }, /* cbxCfpRuleAttrEtagECID */
+    {  0,  0 }, /* cbxCfpRuleAttrEtagGRP */
     {  0,  0 }, /* cbxCfpRuleAttrUDF0 */
     {  0,  0 }, /* cbxCfpRuleAttrUDF1 */
     {  0,  0 }, /* cbxCfpRuleAttrUDF2 */
@@ -338,6 +359,9 @@ cbxi_cfp_rule_field_info_t
     {  0,  0  }, /* cbxCfpRuleAttrDestIp6 */
     {  0,  0  }, /* cbxCfpRuleAttrDestIp6High */
     {  0,  0  }, /* cbxCfpRuleAttrDestIp6Low */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagICID */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagECID */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagGRP */
     { 64,  93 }, /* cbxCfpRuleAttrUDF0 */
     { 64,  29 }, /* cbxCfpRuleAttrUDF1 */
 #if 0
@@ -356,6 +380,58 @@ cbxi_cfp_rule_field_info_t
     { 16, 253 }, /* cbxCfpRuleAttrUDF7 */
     {  0,  0  }  /* cbxCfpRuleAttrMax */
 };
+
+
+#ifdef CONFIG_PORT_EXTENDER
+cbxi_cfp_rule_field_info_t
+    cfp_etag_rule_field_info[cbxCfpRuleAttrMax + 1] = {
+    {  0,  0  }, /* cbxCfpRuleAttrSourcePort */
+    {  0,  0  }, /* cbxCfpRuleAttrIncomingTrafficClass */
+    {  0,  0  }, /* cbxCfpRuleAttrOuterVlanTagStatus */
+    {  0,  0  }, /* cbxCfpRuleAttrInnerVlanTagStatus */
+    {  0,  0  }, /* cbxCfpRuleAttrMimTagStatus */
+    {  0,  0  }, /* cbxCfpRuleAttrETagStatus */
+    {  0,  0  }, /* cbxCfpRuleAttrEtherTypeStatus */
+    {  0,  0  }, /* cbxCfpRuleAttrMplsStatus */
+    {  0,  0  }, /* cbxCfpRuleAttrPppStatus */
+    {  0,  0  }, /* cbxCfpRuleAttrL3Type */
+    {  0,  0  }, /* cbxCfpRuleAttrRangeResult */
+    {  0,  0  }, /* cbxCfpRuleAttrDestMac */
+    {  0,  0  }, /* cbxCfpRuleAttrSrcMac */
+    {  0,  0  }, /* cbxCfpRuleAttrOuterVlanId */
+    {  0,  0  }, /* cbxCfpRuleAttrInnerVlanId */
+    {  0,  0  }, /* cbxCfpRuleAttrEtherType  */
+    {  0,  0  }, /* cbxCfpRuleAttrL4Type */
+    {  0,  0  }, /* cbxCfpRuleAttrL3TtlSummary */
+    {  0,  0  }, /* cbxCfpRuleAttrL3FragSummary */
+    {  0,  0  }, /* cbxCfpRuleAttrSrcIp */
+    {  0,  0  }, /* cbxCfpRuleAttrDestIp */
+    {  0,  0  }, /* cbxCfpRuleAttrDscp */
+    {  0,  0  }, /* cbxCfpRuleAttrL4SrcPort */
+    {  0,  0  }, /* cbxCfpRuleAttrL4DestPort */
+    {  0,  0  }, /* cbxCfpRuleAttrIcmpCode */
+    {  0,  0  }, /* cbxCfpRuleAttrIgmpType */
+    {  0,  0  }, /* cbxCfpRuleAttrTcpControl */
+    {  0,  0  }, /* cbxCfpRuleAttrSrcIp6 */
+    {  0,  0  }, /* cbxCfpRuleAttrSrcIp6High */
+    {  0,  0  }, /* cbxCfpRuleAttrSrcIp6Low */
+    {  0,  0  }, /* cbxCfpRuleAttrDestIp6 */
+    {  0,  0  }, /* cbxCfpRuleAttrDestIp6High */
+    {  0,  0  }, /* cbxCfpRuleAttrDestIp6Low */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagICID */
+    { 12, 177 }, /* cbxCfpRuleAttrEtagECID */
+    {  0,  0  }, /* cbxCfpRuleAttrEtagGRP */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF0 */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF1 */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF2 */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF3 */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF4 */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF5 */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF6 */
+    {  0,  0  }, /* cbxCfpRuleAttrUDF7 */
+    {  0,  0  }  /* cbxCfpRuleAttrMax */
+};
+#endif /* CONFIG_PORT_EXTENDER */
 
 cbxi_cfp_rule_field_info_t  dbid_field_info = { 3, 189 }; /* cbxCfpRuleAttrSourcePort */
 
@@ -391,6 +467,9 @@ cbxi_cfp_ikft_info_t key_info[] = {
        { 32, 255, 192 },    /*  F10 */
        { 24,   9,   8 },    /*  F19 */
        { 20,  51,   0 },    /*  F20 */
+       { 12,   9,  20 },    /*  F21 */
+       { 12,   9,  36 },    /*  F22 */
+       {  3,   9,  33 },    /*  F23 */
 };
 
 
@@ -463,7 +542,7 @@ cbxi_cfp_table_init(int unit) {
 
     max_index = soc_robo2_art_max_index(unit);
 
-    for(index = 0; index < max_index; index++) {
+    for(index = 0; index <= max_index; index++) {
         art.ndx = index;
         CBX_IF_ERROR_RETURN(soc_robo2_art_set(unit, index,
                                                   &art, &status));
@@ -607,6 +686,15 @@ cbxi_cfp_create_default_lookup_keys(int unit){
     }
 #endif /* CONFIG_VIRTUAL_PORT_SUPPORT */
 
+#ifdef CONFIG_PORT_EXTENDER
+    key_fields = CBXI_IKFT_CFP_KEY_TYPE_ETAG;
+        /* Enable key 15 for CFP ETAG rule  */
+    CBX_BMP_ITER(key_fields, field) {
+        CBX_IF_ERROR_RETURN(cbxi_cfp_ikft_key_set(unit, field,
+                                                 CBXI_IKFT_ETAG_KEY_ID));
+    }
+#endif /* CONFIG_PORT_EXTENDER */
+
     return CBX_E_NONE;
 }
 
@@ -635,6 +723,16 @@ cbxi_fpslict_table_update(int unit) {
         CBX_IF_ERROR_RETURN(soc_robo2_fpslict_set(unit, index,
                                       &fpslict_entry, &status));
     }
+
+#ifdef CONFIG_PORT_EXTENDER
+    CBX_IF_ERROR_RETURN(soc_robo2_fpslict_get(unit, SLICID_PE_ETAG_DECAP_CFP,
+                                                  &fpslict_entry));
+    fpslict_entry.other_keyset = CBXI_SLIC_LAG_CFP_KEYSET_ETAG;
+    fpslict_entry.ipv4_keyset  = CBXI_SLIC_LAG_CFP_KEYSET_ETAG;
+    fpslict_entry.ipv6_keyset  = CBXI_SLIC_LAG_CFP_KEYSET_ETAG;
+    CBX_IF_ERROR_RETURN(soc_robo2_fpslict_set(unit, SLICID_PE_ETAG_DECAP_CFP,
+                                      &fpslict_entry, &status));
+#endif /* CONFIG_PORT_EXTENDER */
     return CBX_E_NONE;
 }
 
@@ -654,6 +752,18 @@ cbxi_cfp_kst_entry_update(int unit, int flag) {
     uint32        status  = 0;
 
     if (flag == CBXI_CFP_ENABLE) {
+#ifdef CONFIG_PORT_EXTENDER
+        CBX_IF_ERROR_RETURN(soc_robo2_kst_get(unit, CBXI_SLIC_LAG_CFP_KEYSET_ETAG,
+                                                                &kst_entry));
+        kst_entry.lbh_en = 1;
+        kst_entry.lbh_key = CBXI_IKFT_LBH_OTHER_KEY_ID;
+        kst_entry.cfp_key0 = CBXI_IKFT_ETAG_KEY_ID;
+        kst_entry.dbid0 = CBXI_CFP_ETAG_KEY_DBID;
+        kst_entry.cfp_key_en = 0x1;
+        CBX_IF_ERROR_RETURN(soc_robo2_kst_set(unit, CBXI_SLIC_LAG_CFP_KEYSET_ETAG,
+                                              &kst_entry, &status));
+#endif /* CONFIG_PORT_EXTENDER */
+
         for (index = CBXI_SLIC_LAG_CFP_KEYSET_OTHER;
                   index <= CBXI_SLIC_LAG_CFP_KEYSET_IPV6; index++) {
 
@@ -1174,6 +1284,10 @@ cbxi_cfp_rule_attr_bmp_set() {
     CBX_BMP_CLEAR(l2_v4_rule_attr_bmp_1);
     CBX_BMP_CLEAR(udf_rule_attr_bmp_0);
     CBX_BMP_CLEAR(udf_rule_attr_bmp_1);
+#ifdef CONFIG_PORT_EXTENDER
+    CBX_BMP_CLEAR(etag_rule_attr_bmp_0);
+    CBX_BMP_CLEAR(etag_rule_attr_bmp_1);
+#endif /* CONFIG_PORT_EXTENDER */
 
     for (attr = cbxCfpRuleAttrSourcePort;
                           attr < cbxCfpRuleAttrDestIp6Low; attr++) {
@@ -1187,6 +1301,10 @@ cbxi_cfp_rule_attr_bmp_set() {
         CBX_BMP_OR(l2_v4_rule_attr_bmp_0, ((attr_valid & 1) << attr));
         attr_valid = attr_valid >> 1;
         CBX_BMP_OR(udf_rule_attr_bmp_0, ((attr_valid & 1) << attr));
+#ifdef CONFIG_PORT_EXTENDER
+        attr_valid = attr_valid >> 1;
+        CBX_BMP_OR(etag_rule_attr_bmp_0, ((attr_valid & 1) << attr));
+#endif /* CONFIG_PORT_EXTENDER */
     }
     for (attr = cbxCfpRuleAttrDestIp6Low; attr < cbxCfpRuleAttrMax; attr++) {
         attr_valid = cfp_rule_attr_info[attr].valid_for_key;
@@ -1198,6 +1316,13 @@ cbxi_cfp_rule_attr_bmp_set() {
         attr_valid = attr_valid >> 2;
         CBX_BMP_OR(udf_rule_attr_bmp_1,
                   ((attr_valid & 1) << (attr - cbxCfpRuleAttrDestIp6Low)));
+
+#ifdef CONFIG_PORT_EXTENDER
+        /* get bmp for ETAG rule */
+        attr_valid = attr_valid >> 1;
+        CBX_BMP_OR(etag_rule_attr_bmp_1,
+                  ((attr_valid & 1) << (attr - cbxCfpRuleAttrDestIp6Low)));
+#endif /* CONFIG_PORT_EXTENDER */
     }
     return;
 }
@@ -1243,6 +1368,13 @@ cbxi_cfp_prefill_attribute(cbx_cfp_rule_t *rule, cbx_cfp_l3_l4_pkt_type_t pkt_ty
             CBX_BMP_ASSIGN(attr_bmp[1], udf_rule_attr_bmp_1);
             no_of_bmps = 2;
             break;
+#ifdef CONFIG_PORT_EXTENDER
+        case cbxCfpKeyEtagACL:
+            CBX_BMP_ASSIGN(attr_bmp[0], etag_rule_attr_bmp_0);
+            CBX_BMP_ASSIGN(attr_bmp[1], etag_rule_attr_bmp_1);
+            no_of_bmps = 2;
+            break;
+#endif /* CONFIG_PORT_EXTENDER */
         default:
             return;
     }
@@ -1460,6 +1592,13 @@ cbxi_cfp_rule_param_validate(cbx_cfpid_t *cfpid,
             CBX_BMP_ASSIGN(attr_bmp[0], udf_rule_attr_bmp_0);
             CBX_BMP_ASSIGN(attr_bmp[1], udf_rule_attr_bmp_1);
             break;
+#ifdef CONFIG_PORT_EXTENDER
+       case cbxCfpKeyEtagACL:
+           no_of_attributes = CBX_CFP_ETAG_ATTR_MAX;
+           CBX_BMP_ASSIGN(attr_bmp[0], etag_rule_attr_bmp_0);
+           CBX_BMP_ASSIGN(attr_bmp[1], etag_rule_attr_bmp_1);
+           break;
+#endif /* CONFIG_PORT_EXTENDER */
         default:
             /* Invalid key type */
             LOG_ERROR(BSL_LS_FSAL_CFP,
@@ -1763,6 +1902,12 @@ cbxi_cfp_rule_set(cbx_cfpid_t *cfpid,
             dbid_val = CBXI_CFP_UDF_KEY_DBID;
             no_of_rules = 2;
             break;
+#ifdef CONFIG_PORT_EXTENDER
+        case cbxCfpKeyEtagACL:
+            field_info = &cfp_etag_rule_field_info[0];
+            dbid_val = CBXI_CFP_ETAG_KEY_DBID;
+            break;
+#endif /* CONFIG_PORT_EXTENDER */
         default:
             return CBX_E_PARAM;
     }
@@ -1915,9 +2060,7 @@ cbxi_cfp_index_validate(uint32_t index, cbx_cfp_key_type_t *key_type,
        return CBX_E_PARAM;
    }
     max_index = soc_robo2_wrt_max_index(CBX_AVENGER_PRIMARY);
-    sal_printf("CFP WRT MAX idex is 0x%x\n",max_index);
     max_index = soc_robo2_cfpcam_max_index(CBX_AVENGER_PRIMARY);
-    sal_printf("CFP cam max index is 0x%x\n",max_index);
     if ((max_index < 0) || (cfpid > max_index)) {
         return CBX_E_PARAM;
     }
@@ -2130,6 +2273,13 @@ cbxi_cfp_rule_dump(cbx_cfp_key_type_t key_type,
             no_of_bmp = 2;
             field_info = &cfp_udf_rule_field_info[0];
             break;
+#ifdef CONFIG_PORT_EXTENDER
+        case cbxCfpKeyEtagACL:
+            CBX_BMP_ASSIGN(valid_bmp[0], etag_rule_attr_bmp_0);
+            CBX_BMP_ASSIGN(valid_bmp[1], etag_rule_attr_bmp_1);
+            field_info = &cfp_etag_rule_field_info[0];
+            break;
+#endif /* CONFIG_PORT_EXTENDER */
         default:
             return CBX_E_PARAM;
     }
@@ -2518,9 +2668,11 @@ cbx_cfp_rule_set(cbx_cfpid_t     *cfpid,
         return CBX_E_PARAM;
     }
     if (tcam_index_info[index] & CBXI_CFP_TCAM_ENTRY_VALID) {
+#ifndef CONFIG_PORT_EXTENDER
         LOG_ERROR(BSL_LS_FSAL_CFP,
             (BSL_META("FSAL API : cbx_cfp_rule_set()..Passed  \
                     index is already being used \n")));
+#endif
         return CBX_E_EXISTS;
     }
     /* No support for cbxCfpKeyL2IPv4ACL in A0 variants...due to UDF support
@@ -2844,3 +2996,206 @@ cbx_cfp_action_dump(cbx_cfpid_t  *cfpid,
     return;
 }
 
+/**
+ * Function :
+ *    cbx_cfp_stat_multi_get
+ * Purpose  :
+ *    This routine is used to get the statistics of a given rule idx
+ * Parameters:
+ *    cfpid     (IN)  CFP Identifier
+ *    index     (IN)  Rule Index
+ *    nstat     (IN)  Number of statistics to read
+ *    stat_arr  (IN)  Array of statistics type
+ *    value_arr (OUT) Array of statistics value
+ *
+ * Returns:
+ *    CBX_E_NONE Success
+ *    CBX_E_XXXX Failure
+ */
+int
+cbx_cfp_stat_multi_get(cbx_cfpid_t  *cfpid,
+                    uint32_t      index,
+                    int nstat,
+                    cbx_cfp_stat_t *stat_arr,
+                    uint64 *value_arr)
+{
+
+    int         unit = CBX_AVENGER_PRIMARY;
+    int         rule_index;
+    int         stat_index;
+    int         max_index;
+    stat_t      cfp_entry_stat;
+    action_t    action_entry;
+    wrt_t       wrt_entry;
+
+    /* Check whether the index passed is within the limit */
+    /* Also find out the unit if it is cascading setup    */
+    max_index = soc_robo2_stat_max_index(unit);
+    rule_index = (int)(index);
+    if (SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) {
+        if (index > max_index) {
+            unit = 1;
+            rule_index = (int) (index - max_index) - 1 ;
+            max_index = soc_robo2_stat_max_index(unit);
+        }
+    }
+    if (rule_index > max_index) {
+        return CBX_E_PARAM;
+    }
+
+    CBX_IF_ERROR_RETURN(soc_robo2_wrt_get(unit, rule_index/2, &wrt_entry));
+    if (wrt_entry.wide_rule_entry == 1 && !(rule_index & 1)) {
+        /* For double wide rule, the counter is available in the second entry.
+         * If rule index is odd,
+         *     then it is either the second entry or single wide rule
+         */
+        rule_index = rule_index  + 1;
+    }
+
+    /* Read cfp stat table entry from HW */
+    CBX_IF_ERROR_RETURN(soc_robo2_stat_get(unit, rule_index, &cfp_entry_stat));
+    /* Read action entry from HW to determine counter mode */
+    CBX_IF_ERROR_RETURN(soc_robo2_action_get(unit, rule_index, &action_entry));
+    for (stat_index = 0; stat_index < nstat; stat_index++) {
+        switch (stat_arr[stat_index]) {
+        case cbxCFPStatBytes:
+            if (action_entry.counter_mode != cbxCFPCountPacketsBytes) {
+                return CBX_E_PARAM;
+            }
+            value_arr[stat_index] = cfp_entry_stat.stat_counter1_hi;
+
+            value_arr[stat_index] = (value_arr[stat_index] << 32);
+            COMPILER_64_ADD_64(value_arr[stat_index], cfp_entry_stat.stat_counter1_lo);
+            break;
+        case cbxCFPStatPackets:
+            if (action_entry.counter_mode != cbxCFPCountPacketsBytes) {
+                return CBX_E_PARAM;
+            }
+            value_arr[stat_index] = cfp_entry_stat.stat_counter0_hi;
+            value_arr[stat_index] = (value_arr[stat_index] << 32);
+            COMPILER_64_ADD_64(value_arr[stat_index], cfp_entry_stat.stat_counter0_lo);
+            break;
+        case cbxCFPStatPacketsInProfile:
+            if (action_entry.counter_mode != cbxCFPCountPacketsByProfile) {
+                return CBX_E_PARAM;
+            }
+            value_arr[stat_index] = cfp_entry_stat.stat_counter1_hi;
+            value_arr[stat_index] = (value_arr[stat_index] << 32);
+            COMPILER_64_ADD_64(value_arr[stat_index], cfp_entry_stat.stat_counter1_lo);
+            break;
+        case cbxCFPStatPacketsOutProfile:
+            if (action_entry.counter_mode != cbxCFPCountPacketsByProfile) {
+                return CBX_E_PARAM;
+            }
+            value_arr[stat_index] = cfp_entry_stat.stat_counter0_hi;
+            value_arr[stat_index] = (value_arr[stat_index] << 32);
+            COMPILER_64_ADD_64(value_arr[stat_index], cfp_entry_stat.stat_counter0_lo);
+            break;
+        default:
+            return CBX_E_PARAM;
+        }
+
+    }
+    return CBX_E_NONE;
+}
+
+/**
+ * Function :
+ *    cbx_cfp_stat_multi_set
+ * Purpose  :
+ *    This routine is used to set the statistics of a given rule idx
+ * Parameters:
+ *    cfpid     (IN)  CFP Identifier
+ *    index     (IN)  Rule Index
+ *    nstat     (IN)  Number of statistics to set
+ *    stat_arr  (IN)  Array of statistics type
+ *    value_arr (IN)  Array of statistics value
+ *
+ * Returns:
+ *    CBX_E_NONE Success
+ *    CBX_E_XXXX Failure
+ */
+int
+cbx_cfp_stat_multi_set(cbx_cfpid_t  *cfpid,
+                    uint32_t      index,
+                    int nstat,
+                    cbx_cfp_stat_t *stat_arr,
+                    uint64 *value_arr)
+{
+
+    int         unit = CBX_AVENGER_PRIMARY;
+    int         rule_index;
+    int         stat_index;
+    int         max_index;
+    stat_t      cfp_entry_stat;
+    action_t    action_entry;
+    uint32      status;
+    wrt_t       wrt_entry;
+
+    /* Check whether the index passed is within the limit */
+    /* Also find out the unit if it is cascading setup    */
+    max_index = soc_robo2_stat_max_index(unit);
+    rule_index = (int)(index);
+    if (SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) {
+        if (index > max_index) {
+            unit = 1;
+            rule_index = (int) (index - max_index) - 1;
+            max_index = soc_robo2_stat_max_index(unit);
+        }
+    }
+    if (rule_index > max_index) {
+        return CBX_E_PARAM;
+    }
+
+    CBX_IF_ERROR_RETURN(soc_robo2_wrt_get(unit, rule_index/2, &wrt_entry));
+    if (wrt_entry.wide_rule_entry == 1 && !(rule_index & 1)) {
+        /* For double wide rule, the counter is available in the second entry.
+         * If rule index is odd,
+         *     then it is either the second entry or single wide rule
+         */
+        rule_index = rule_index  + 1;
+    }
+
+    /* Read cfp stat table entry from HW */
+    CBX_IF_ERROR_RETURN(soc_robo2_stat_get(unit, rule_index, &cfp_entry_stat));
+    /* Read action entry from HW to determine counter mode */
+    CBX_IF_ERROR_RETURN(soc_robo2_action_get(unit, rule_index, &action_entry));
+    for (stat_index = 0; stat_index < nstat; stat_index++) {
+        switch (stat_arr[stat_index]) {
+        case cbxCFPStatBytes:
+            if (action_entry.counter_mode != cbxCFPCountPacketsBytes) {
+                return CBX_E_PARAM;
+            }
+            cfp_entry_stat.stat_counter1_lo = (uint32) (value_arr[stat_index] & 0xFFFFFFFF);
+            cfp_entry_stat.stat_counter1_hi = (uint32) (value_arr[stat_index] >> 32);
+            break;
+        case cbxCFPStatPackets:
+            if (action_entry.counter_mode != cbxCFPCountPacketsBytes) {
+                return CBX_E_PARAM;
+            }
+            cfp_entry_stat.stat_counter0_lo = (uint32) (value_arr[stat_index] & 0xFFFFFFFF);
+            cfp_entry_stat.stat_counter0_hi = (uint32) (value_arr[stat_index] >> 32);
+            break;
+        case cbxCFPStatPacketsInProfile:
+            if (action_entry.counter_mode != cbxCFPCountPacketsByProfile) {
+                return CBX_E_PARAM;
+            }
+            cfp_entry_stat.stat_counter1_lo = (uint32) (value_arr[stat_index] & 0xFFFFFFFF);
+            cfp_entry_stat.stat_counter1_hi = (uint32) (value_arr[stat_index] >> 32);
+            break;
+        case cbxCFPStatPacketsOutProfile:
+            if (action_entry.counter_mode != cbxCFPCountPacketsByProfile) {
+                return CBX_E_PARAM;
+            }
+            cfp_entry_stat.stat_counter0_lo = (uint32) (value_arr[stat_index] & 0xFFFFFFFF);
+            cfp_entry_stat.stat_counter0_hi = (uint32) (value_arr[stat_index] >> 32);
+            break;
+        default:
+            return CBX_E_PARAM;
+        }
+
+    }
+    /* Write cfp stat table entry to HW */
+    CBX_IF_ERROR_RETURN(soc_robo2_stat_set(unit, rule_index, &cfp_entry_stat, &status));
+    return CBX_E_NONE;
+}

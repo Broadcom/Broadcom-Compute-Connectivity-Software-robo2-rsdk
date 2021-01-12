@@ -72,6 +72,4 @@ extern int cbxi_mcast_init(void);
 extern int cbxi_mcast_id_check(cbx_mcastid_t mcastid);
 extern int cbxi_mcast_entry_set(int unit, uint32_t  mcast,
                         cbxi_pgid_t lpg_new, uint32_t lilt_ent, int flags);
-extern int cbxi_mcast_pe_shared_lag_update(
-                                cbx_portid_t lagid, cbx_portid_t portid);
 #endif

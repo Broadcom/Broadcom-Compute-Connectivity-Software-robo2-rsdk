@@ -39,7 +39,9 @@ int cbxi_trap_control_get(int unit,
         trap_ctl->trap_flags = CBXI_TRAP_TO_CPU;
     } else if (ent_tct.trap_group == TRAP_GROUP_TRAP2CASC) {
         trap_ctl->trap_flags = CBXI_TRAP_TO_CASCADED_PORT;
-    }else if (ent_tct.trap_group == TRAP_GROUP_DROP) {
+    } else if (ent_tct.trap_group == TRAP_GROUP_TRAP2CASC_PE) {
+        trap_ctl->trap_flags = CBXI_TRAP_TO_CASCADED_PE;
+    } else if (ent_tct.trap_group == TRAP_GROUP_DROP) {
         trap_ctl->trap_flags = CBXI_TRAP_DROP;
     } else if (!ent_tct.trap_group) {
         trap_ctl->trap_flags = 0;
@@ -74,6 +76,8 @@ int cbxi_trap_control_set(int unit,
         }
     } else if (trap_ctl->trap_flags & CBXI_TRAP_TO_CASCADED_PORT) {
         ent_tct.trap_group = TRAP_GROUP_TRAP2CASC;
+    } else if (trap_ctl->trap_flags & CBXI_TRAP_TO_CASCADED_PE) {
+        ent_tct.trap_group = TRAP_GROUP_TRAP2CASC_PE;
     } else if (trap_ctl->trap_flags & CBXI_TRAP_DROP) {
         ent_tct.trap_group = TRAP_GROUP_DROP;
     } else if (trap_ctl->trap_flags & CBXI_TRAP_TO_CPU_TS) {
@@ -166,6 +170,30 @@ cbxi_trap_dest_update(int unit, cbx_portid_t portid)
 }
 
 #ifdef CONFIG_CASCADED_MODE
+#ifdef CONFIG_PORT_EXTENDER
+int cbxi_cascade_lin_encap_set(int unit,cbx_port_t port,int lin)
+{
+    cbxi_encap_record_t  encap_record;
+    uint32_t             flags;
+
+    sal_memset(&encap_record, 0, sizeof(cbxi_encap_record_t));
+#ifdef CONFIG_BCM_TAG /* BCM TAG for SPP info */
+    CBX_EPP_INSERT_BROADCOM_HEADER(&encap_record);
+#endif
+    CBX_EPP_INSERT_CB_CASCADE_TAG(&encap_record);
+    CBX_EPP_INSERT_EOR(&encap_record);
+    if (unit == 0) {
+        flags = CBXI_ENCAP_AVG_PRI;
+    } else {
+        flags = CBXI_ENCAP_AVG_SEC;
+    }
+
+    CBX_IF_ERROR_RETURN(cbxi_lin_encap_set(port, lin, 0, &encap_record, flags));
+
+    return CBX_E_NONE;
+}
+#endif /* CONFIG_PORT_EXTENDER */
+
 /*
  * Function:
  *  cbxi_trap_cascade_set
@@ -193,12 +221,26 @@ cbxi_dest_cascade_set(int unit, cbx_portid_t portid)
     /* Map port to lpgid and set it as destination */
     CBX_IF_ERROR_RETURN(cbxi_robo2_port_validate(portid, &port, &lpgid, &i));
     CBX_IF_ERROR_RETURN(cbxi_lin_dest_set(unit, ent_mtgt.dli_n, lpgid));
+#ifdef CONFIG_PORT_EXTENDER
+    /* Use ent_mtgt.dli_n to encap CB tag on CSD port */
+    CBX_IF_ERROR_RETURN(cbxi_cascade_lin_encap_set(unit, port, ent_mtgt.dli_n));
+#endif /* CONFIG_PORT_EXTENDER */
+
+    /* Use TRAP_GROUP_TRAP2CASC_PE LIN to send plain packet */
+    CBX_IF_ERROR_RETURN(soc_robo2_mtgt_get(
+                        unit, (TRAP_GROUP_TRAP2CASC_PE + 64), &ent_mtgt));
+    CBX_IF_ERROR_RETURN(cbxi_lin_dest_set(unit, ent_mtgt.dli_n, lpgid));
+
     if (unit) {
         CBX_IF_ERROR_RETURN(soc_robo2_mtgt_get(
                             unit, (TRAP_GROUP_TRAP2CP_CSD + 64), &ent_mtgt));
         cbxi_cascade_port_get(unit, &portid);
         CBX_IF_ERROR_RETURN(cbxi_robo2_port_validate(portid, &port, &lpgid, &i));
         CBX_IF_ERROR_RETURN(cbxi_lin_dest_set(unit, ent_mtgt.dli_n, lpgid));
+#ifdef CONFIG_PORT_EXTENDER
+        /* Use ent_mtgt.dli_n to encap CB tag on CSD port */
+        CBX_IF_ERROR_RETURN(cbxi_cascade_lin_encap_set(unit, port, ent_mtgt.dli_n));
+#endif /* CONFIG_PORT_EXTENDER */
     }
     return CBX_E_NONE;
 }
@@ -321,12 +363,12 @@ cbxi_slic_trap_init(int unit)
     trap_ctl.term = 0;
     CBX_IF_ERROR_RETURN(cbxi_trap_control_set(unit, SLIC_GROUP5, &trap_ctl));
 
-    /* SNOOP_DHCP4 : Trap to CP */
-    CBX_IF_ERROR_RETURN(cbxi_trap_control_get(unit, SNOOP_DHCP4, &trap_ctl));
-    trap_ctl.trap_flags = CBXI_TRAP_TO_CPU;
+    /* SLIC_TRAP_GROUP6 : Trap to Avenger Cascade port without CB tag */
+    CBX_IF_ERROR_RETURN(cbxi_trap_control_get(unit, SLIC_GROUP6, &trap_ctl));
+    trap_ctl.trap_flags = CBXI_TRAP_TO_CASCADED_PE;
     trap_ctl.drop = 0;
     trap_ctl.term = 0;
-    CBX_IF_ERROR_RETURN(cbxi_trap_control_set(unit, SNOOP_DHCP4, &trap_ctl));
+    CBX_IF_ERROR_RETURN(cbxi_trap_control_set(unit, SLIC_GROUP6, &trap_ctl));
 
     /* CFP_TRAP :  Drop all packets */
     CBX_IF_ERROR_RETURN(cbxi_trap_control_get(unit, CFP_GROUP1, &trap_ctl));
@@ -353,6 +395,14 @@ cbxi_slic_trap_init(int unit)
     trap_ctl.drop = 0;
     trap_ctl.term = 1;
     CBX_IF_ERROR_RETURN(cbxi_trap_control_set(unit, CFP_GROUP4, &trap_ctl));
+
+    /* Use CFP to duplicate packets in case of LAG across Avengers */
+    /* CFP_TRAP_GROUP5 : trap to Cascade port without CB tag */
+    CBX_IF_ERROR_RETURN(cbxi_trap_control_get(unit, CFP_GROUP5, &trap_ctl));
+    trap_ctl.trap_flags = CBXI_TRAP_TO_CASCADED_PE;
+    trap_ctl.drop = 0;
+    trap_ctl.term = 0;
+    CBX_IF_ERROR_RETURN(cbxi_trap_control_set(unit, CFP_GROUP5, &trap_ctl));
 
     /* IPV4_HDR_CHECKSUM error :  Drop the packet */
     CBX_IF_ERROR_RETURN(cbxi_trap_control_get(unit, IPV4_HDR_CHECKSUM, &trap_ctl));
@@ -481,7 +531,7 @@ cbxi_trap_group_init(void)
                 (TRAP_GROUP_TRAP2CP_TS + 64 + unit), &ent_mtgt, &status));
         }
 
-        /* TRAP_GROUP_DROP = 6 corresponds to MTGT index 70 */
+        /* TRAP_GROUP_DROP = 7 corresponds to MTGT index 71 */
         CBX_IF_ERROR_RETURN(soc_robo2_mtgt_get(
                         unit, (TRAP_GROUP_DROP + 64), &ent_mtgt));
         ent_mtgt.dp = 3;
@@ -507,6 +557,18 @@ cbxi_trap_group_init(void)
         CBX_IF_ERROR_RETURN(soc_robo2_mtgt_set(
                         unit, (TRAP_GROUP_TRAP2CASC + 64), &ent_mtgt, &status));
 
+#ifdef CONFIG_PORT_EXTENDER
+    /* Use separate LIN for sending plain packet to CSD port */
+    CBX_IF_ERROR_RETURN(cbxi_lin_slot_get(&dlinid));
+    for (unit = 0; unit < num_units; unit++) {
+         /* TRAP_GROUP_TRAP2CASC_PE= 6 corresponds to MTGT index 70 */
+        CBX_IF_ERROR_RETURN(soc_robo2_mtgt_get(
+                        unit, (TRAP_GROUP_TRAP2CASC_PE + 64), &ent_mtgt));
+        ent_mtgt.dli_n = dlinid;
+        CBX_IF_ERROR_RETURN(soc_robo2_mtgt_set(
+                        unit, (TRAP_GROUP_TRAP2CASC_PE + 64), &ent_mtgt, &status));
+    }
+#endif /* CONFIG_PORT_EXTENDER */
     }
 #endif /* CONFIG_CASCADED_MODE */
 

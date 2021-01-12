@@ -23,7 +23,11 @@ PHY_CFLAGS += -DPHYMOD_INCLUDE_CUSTOM_CONFIG
 
 # Phy package options
 PHY_PKG_OPTIONS ?= $(PKG_OPTIONS)
+ifdef CONFIG_EXT_PHY
 PHY_PKG_OPTIONS += '-cbcm_gphy,bcmi_viper_xgxs,bcmi_tsce_xgxs,bcm_542xx'
+else
+PHY_PKG_OPTIONS += '-cbcm_gphy,bcmi_viper_xgxs,bcmi_tsce_xgxs'
+endif
 
 # Option to retrieve compiler version
 CDK_CC_VERFLAGS ?= -v

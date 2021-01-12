@@ -39,6 +39,26 @@
 #define dbg_printf sysprintf
 #endif
 
+#define PRINT_PER_QUEUE_PKT_CNT(unit, port, queue) \
+{ \
+    REG_READ_CB_PQS_PER_QUEUE_PKT_COUNT_PORT ## port ## _QUEUE ## queue ##r(unit, &regval);    \
+    if (regval != 0) {    \
+         sal_printf("CB_PQS_per_queue_pkt_count_port%d_queue%d => %08x\n", port, queue, regval);    \
+    } \
+}
+
+#define PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, port) \
+{ \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 0) \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 1) \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 2) \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 3) \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 4) \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 5) \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 6) \
+    PRINT_PER_QUEUE_PKT_CNT(unit, port, 7) \
+}
+
 /* [Murali]: Updates to this file is ongoing  #if 0 code is retained and will be
  * updated/deleted as per sequence provided by hardware.
  */
@@ -553,7 +573,7 @@ soc_cb_init(int unit)
     fval = 1;
     soc_CB_BMU_LLC_SELF_INITr_field_set(unit, (uint32 *)&regval, SELF_INITf, &fval);
     soc_CB_BMU_LLC_SELF_INITr_field_set(unit, (uint32 *)&regval, START_PAGEf, &fval);
-    fval = 4000;
+    fval = 4095;
     soc_CB_BMU_LLC_SELF_INITr_field_set(unit, (uint32 *)&regval, END_PAGEf, &fval);
     REG_WRITE_CB_BMU_LLC_SELF_INITr(unit, (uint32 *)&regval);
 
@@ -2709,6 +2729,25 @@ dump_cb_counters(int unit)
              sal_printf("CB_PQS_per_port_status_a[%d] => %08x\n", i, regval);
         }
     }
+
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 0);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 1);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 2);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 3);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 4);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 5);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 6);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 7);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 8);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 9);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 10);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 11);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 12);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 13);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 14);
+    PRINT_PER_QUEUE_PKT_CNT_FOR_PORT(unit, 15);
+
+
     REG_READ_CB_PQM_PMAPDROP_COUNT_Ar(unit, &regval);
     if (regval != 0) {
          sal_printf("CB_PQM_pmapdrop_count_a => %08x\n", regval);
@@ -3175,7 +3214,7 @@ soc_robo2_essential_init(int unit)
             break;
 
         case BCM53158_B1_REV_ID:
-            idx = soc_robo2_chip_type_to_index(SOC_CHIP_BCM53158_B0);
+            idx = soc_robo2_chip_type_to_index(SOC_CHIP_BCM53158_B1);
             soc->info.driver_type = SOC_CHIP_BCM53158_B1;
             break;
 

@@ -308,6 +308,21 @@ int cbx_vlan_port_get ( cbx_vlanid_t    vlanid,
                         int            *array_size);
 
 
+#ifdef CONFIG_VLAN_PVID
+/**
+ * Set pvid field of Port to given VLAN id
+ *
+ * @param vlanid     (IN)  VLAN Identifier
+ * @param portid     (IN)  Port Identifier
+ *
+ * @return return code
+ * @retval CBX_E_NONE Success
+ * @retval CBX_E_XXXX Failure
+ */
+
+int cbx_vlan_port_pvid_set( cbx_vlanid_t vlanid,
+                            cbx_portid_t portid);
+#endif
 /**
  * @}
  */

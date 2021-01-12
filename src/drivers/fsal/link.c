@@ -159,6 +159,14 @@ cbxi_robo2_link_scan_update_port(int unit, int port)
     uint32              lag_link_notify = FALSE;
 #endif /* CONFIG_CASCADED_MODE */
     cbx_port_params_t port_params;
+#ifdef CONFIG_10G_INTF_KR
+    uint32 phy_reg;
+    uint32_t regdata_rd;
+    uint32_t regdata_wr;
+    uint16_t link_status_xfi;
+    uint16_t pmd_lock;
+    uint16_t signal_ok;
+#endif
 
     global_port = port + (unit * CBX_MAX_PORT_PER_UNIT);
     lu.port_index = global_port;
@@ -167,6 +175,33 @@ cbxi_robo2_link_scan_update_port(int unit, int port)
         return rv;
 
     ls_cntl = &LINK_CNTL;
+
+#ifdef CONFIG_10G_INTF_KR
+    if ((port == 12) || (port == 13)) {
+        phy_reg = REG_ACC_TSC_IBLK | (0x3 << 16) | TSCE_RX_X4_STATUS1_PCS_LIVE_STATUS;
+        cbx_port_phy_get(portid,0, phy_reg, &regdata_rd);
+        link_status_xfi = (regdata_rd & 0x2) >> 1 ;
+
+        phy_reg = REG_ACC_TSC_IBLK | (0x3 << 16) | TSCE_RX_X4_STATUS1_PMA_PMD_LIVE_STATUS;
+        cbx_port_phy_get(portid,0, phy_reg, &regdata_rd);
+        pmd_lock = (regdata_rd & 0x8) >> 3;
+        signal_ok = regdata_rd & 0x1;
+
+        if (link_status_xfi == 0){
+            // do nothing if link down already
+        } else if ((pmd_lock == 0) || (signal_ok == 0)) {
+            //set bit0 = 0 first
+            phy_reg = REG_ACC_TSC_IBLK | (0x3 << 16) | TSCE_AN_X4_ABILITIES_ENABLES;
+            regdata_wr = TSCE_AN_X4_ABILITIES_ENABLES_AN | TSCE_AN_X4_ABILITIES_ENABLES_CL73;
+            cbx_port_phy_set(portid, 0, phy_reg, regdata_wr);
+
+            //set bit0 = 1 to restart AN
+            phy_reg = REG_ACC_TSC_IBLK | (0x3 << 16) | TSCE_AN_X4_ABILITIES_ENABLES;
+            regdata_wr = TSCE_AN_X4_ABILITIES_ENABLES_AN | TSCE_AN_X4_ABILITIES_ENABLES_CL73 | TSCE_AN_X4_ABILITIES_ENABLES_CL73_AN_RESTART;
+            cbx_port_phy_set(portid, 0, phy_reg, regdata_wr);
+        }
+    }
+#endif
 
     cur_link = CBX_PBMP_MEMBER(ls_cntl->lc_pbm_link[unit], port);
 
@@ -183,14 +218,22 @@ cbxi_robo2_link_scan_update_port(int unit, int port)
         return rv;
     }
 
-    if( new_link ) { /* link up now */
-        CBX_IF_ERROR_RETURN(mac_speed_get(unit,port,(int *)&mac_speed));
-        CBX_IF_ERROR_RETURN(avng_phy_speed_get(unit,port,&phy_speed));
+    if (cur_link == new_link) {
+        return CBX_E_NONE;
+    }
+    else if (new_link) { /* link up now */
+        if ((port==10) || (port==11)) {  /* Only sync up port 10 and 11 of XLMAC */
+            CBX_IF_ERROR_RETURN(mac_speed_get(unit,port,(int *)&mac_speed));
+            CBX_IF_ERROR_RETURN(avng_phy_speed_get(unit,port,&phy_speed));
 
-        if( phy_speed != mac_speed ) {
-           CBX_IF_ERROR_RETURN(mac_speed_set(unit,port,phy_speed));
+            if( phy_speed != mac_speed ) {
+               CBX_IF_ERROR_RETURN(mac_speed_set(unit,port,phy_speed));
+            }
         }
-    } else {
+    }
+#if 0
+    else
+    {
         /* Link down */
         /* Go to the default speed */
         if (IS_XL_PORT(unit, port)) {
@@ -214,10 +257,7 @@ cbxi_robo2_link_scan_update_port(int unit, int port)
         }
         CBX_IF_ERROR_RETURN(mac_speed_set(unit,port,(int)mac_speed));
     }
-
-    if (cur_link == new_link) {
-        return CBX_E_NONE;
-    }
+#endif
     CBX_IF_ERROR_RETURN(cbx_port_info_get(global_port, &port_params));
 
     if (new_link) {
@@ -225,15 +265,10 @@ cbxi_robo2_link_scan_update_port(int unit, int port)
         if (port < 14) {
             rv = cbxi_robo2_lag_member_check(global_port, &lagid);
             if (CBX_SUCCESS(rv)) {
-#ifdef CONFIG_EXTERNAL_HOST
                 /* Set forwarding state on lagid */
-                CBX_IF_ERROR_RETURN(cbxi_stg_port_set_all(
-                                lagid, cbxStgStpStateForward));
-#else
                 CBX_IF_ERROR_RETURN(cbxi_stg_stp_set(CBX_STG_DEFAULT,
                                 lagid, cbxStgStpStateForward));
 
-#endif
 
 #ifdef CONFIG_PORT_EXTENDER
                 if ((cbxi_check_port_extender_mode() == CBX_E_NONE)
@@ -250,14 +285,8 @@ cbxi_robo2_link_scan_update_port(int unit, int port)
                 lag_link_notify = TRUE;
 #endif /* CONFIG_CASCADED_MODE */
             } else {
-#ifdef CONFIG_EXTERNAL_HOST
-                CBX_IF_ERROR_RETURN(cbxi_stg_port_set_all(
-                                global_port, cbxStgStpStateForward));
-
-#else
                 CBX_IF_ERROR_RETURN(cbxi_stg_stp_set(CBX_STG_DEFAULT,
                                 global_port, cbxStgStpStateForward));
-#endif
 
 #ifdef CONFIG_PORT_EXTENDER
                 if ((cbxi_check_port_extender_mode() == CBX_E_NONE)
@@ -875,6 +904,44 @@ int cbx_link_scan_enable_set ( cbx_link_scan_params_t  *link_scan_params )
     LC_UNLOCK;
 
     return(rv);
+}
+
+
+/**
+ * Function:
+ *      cbxi_link_scan_wakeup
+ * Purpose:
+ * Wake up the link scan thread for a re-scan.
+ * If the link scan thread is not running, this function is a no-op.
+ *
+ * This function may be called only from interrupt service routines, with
+ * interrupts disabled.
+ *
+ * @return return code
+ * @retval CBX_E_NONE Success
+ * @retval CBX_E_XXXX Failure
+ */
+
+int cbxi_link_scan_wakeup ( void )
+{
+    cbx_ls_cntl_t *ls_cntl;
+
+    LC_CHECK_INIT;
+
+    ls_cntl = &LINK_CNTL;
+
+    /*
+     * Do not use LS_LOCK/LS_UNLOCK here. Locking mutexes is not allowed from
+     * ISRs, and will re-enable interrupts as a side effect at best (and cause
+     * a deadlock at worst). With interrupts disabled, we can safely assume
+     * that neither the link scan thread nor the semaphore will disappear from
+     * under us.
+     */
+    if (ls_cntl->lc_thread != SAL_THREAD_ERROR) {
+        sal_sem_give(ls_cntl->lc_sema);
+    }
+
+    return CBX_E_NONE;
 }
 
 

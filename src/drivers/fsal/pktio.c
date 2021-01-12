@@ -852,6 +852,10 @@ cbxi_pkt_cb_send(void *buffer, int buffer_size,
     rv = soc_packetio_send(unit, buffer, buffer_size);
 #else
     rv = hpa_tx_packet(buffer, buffer_size);
+    if (rv != SOC_E_NONE) {
+        /* Free allocated buffer */
+        sal_dma_free(buffer);
+    }
 #endif
 #ifdef CONFIG_CASCADED_MODE
     /* setback ppfov after tx */

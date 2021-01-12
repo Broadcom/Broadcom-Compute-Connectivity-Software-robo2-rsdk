@@ -141,7 +141,7 @@ err_code_t eagle_tsc_config_shared_tx_pattern_idx_get( const phymod_access_t *pa
 err_code_t eagle_phy_data_path_reset_release(const phymod_access_t *pa, uint32_t enable);
 err_code_t eagle_phy_change_speed_reset(const phymod_access_t *pa);
 err_code_t eagle_phy_pmd_setup (const phymod_access_t *pa, int pmd_touched, const phymod_core_init_config_t* init_config);
-err_code_t eagle_phy_pcs_12p5_vco_setup(const phymod_access_t *pa);
+err_code_t eagle_phy_pcs_12p5_vco_setup(const phymod_access_t *pa, uint32_t enable);
 
 err_code_t eagle_core_init_vco(phymod_access_t *pa, uint32_t vco_12p5);
 err_code_t eagle_pmd_an_get(const phymod_access_t *pa, phymod_autoneg_control_t* an, uint32_t* an_done);

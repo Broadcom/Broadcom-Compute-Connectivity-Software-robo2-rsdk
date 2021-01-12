@@ -37,6 +37,8 @@ STATIC cbxi_meter_info_t cfp_meter_profile[CBXI_MAX_CFP_METER_PROFILE];
 STATIC shr_aidxres_list_handle_t  cfp_meter_list_handle[CBX_MAX_UNITS];
 #endif /* CONFIG_EXTERNAL_HOST */
 
+cbx_meter_control_t cbx_meter_ctrl = cbxMeterControlPortTC;
+
 /*
  * Function:
  *  cbxi_meter_individual_rate_validate
@@ -1000,7 +1002,7 @@ cbxi_meter_index_validate(int unit,
             return CBX_E_PARAM;
             break;
     }
-    if (meter_index >= max_index) {
+    if (meter_index > max_index) {
         return CBX_E_PARAM;
 
     }
@@ -1165,8 +1167,8 @@ cbxi_meter_op(int unit,
     int              valid = 0;
     int              i = 0;
     bmu_profile_t    profile_entry;
+    mtr2tcb_t        entry;
     cbx_flowcontrol_t fc;
-    mtr2tcb_t       entry;
 
     if (flag & CBXI_METER_CREATE) {
         /*  Extract profile type and profile index from profile id */
@@ -1214,16 +1216,18 @@ cbxi_meter_op(int unit,
             }
             CBX_IF_ERROR_RETURN(soc_robo2_bmu_pptr_set(unit, meter_index,
                                         &pptr_entry, &status));
-            /* read mtr2tcb entry */
             CBX_IF_ERROR_RETURN(cbx_cosq_flowcontrol_get(&fc));
-            entry.shp_en = 0;
-            entry.tc_bmp = 0;
-            if ((flag & CBXI_METER_CREATE) && (fc == cbxFlowcontrolMeter)) {
-                entry.shp_en = 1;
+            if (fc == cbxFlowcontrolMeter) {
+                CBX_IF_ERROR_RETURN(
+                    soc_robo2_mtr2tcb_get(unit, meter_index, &entry));
+                entry.tc_bmp = 0;
+                if ((flag & CBXI_METER_CREATE)) {
+                    entry.tc_bmp =
+                        1 << (meter_index % CBXI_METER_BMU_PER_PORT_METERS);
+                }
+                CBX_IF_ERROR_RETURN(soc_robo2_mtr2tcb_set(unit, meter_index,
+                                                          &entry, &status));
             }
-            entry.tc_bmp = 1 << (meter_index % CBXI_METER_BMU_PER_PORT_METERS);
-            CBX_IF_ERROR_RETURN(soc_robo2_mtr2tcb_set(unit, meter_index,
-                                                           &entry, &status));
             break;
 
         case cbxMeterTrafficType:
@@ -2534,3 +2538,77 @@ cbx_meter_pm_get(cbx_meterid_t          meterid,
     return CBX_E_NONE;
 }
 
+/**
+ * Function :
+ *      cbx_meter_control_set
+ * Purpose  :
+ *      Meter control type set
+ *
+ * Parameters:
+ *      meter_ctrl   (IN)  Meter control type
+ *
+ * Returns:
+ *      CBX_E_NONE Success
+ *      CBX_E_XXXX Failure
+ */
+int
+cbx_meter_control_set(cbx_meter_control_t meter_ctrl) {
+
+    cbx_flowcontrol_t fc;
+    uint32         meter_config;
+    uint32         fval;
+
+    if (meter_ctrl == cbx_meter_ctrl) {
+        return CBX_E_NONE;
+    }
+    CBX_IF_ERROR_RETURN(cbx_cosq_flowcontrol_get(&fc));
+    if (fc != cbxFlowcontrolNone) {
+        LOG_ERROR(BSL_LS_FSAL_METER,
+            (BSL_META("FSAL API : cbx_meter_control_set()... \
+            Not allowed when flowcontrol mode is not cbxFlowcontrolNone \n")));
+        return CBX_E_FAIL;
+    }
+    CBX_IF_ERROR_RETURN(
+        REG_READ_CB_BMU_MTR_CONFIGr(CBX_AVENGER_PRIMARY, &meter_config));
+    switch (meter_ctrl) {
+        case cbxMeterControlPortTC:
+            fval = 1;
+            soc_CB_BMU_MTR_CONFIGr_field_set(CBX_AVENGER_PRIMARY, &meter_config,
+                                             METER_ID_SELf, &fval);
+        break;
+        case cbxMeterControlPort:
+            fval = 2;
+            soc_CB_BMU_MTR_CONFIGr_field_set(CBX_AVENGER_PRIMARY, &meter_config,
+                                             METER_ID_SELf, &fval);
+        break;
+        default:
+            return CBX_E_NONE;
+        break;
+    }
+    CBX_IF_ERROR_RETURN(
+              REG_WRITE_CB_BMU_MTR_CONFIGr(CBX_AVENGER_PRIMARY, &meter_config));
+    cbx_meter_ctrl = meter_ctrl;
+    return CBX_E_NONE;
+}
+
+/**
+ * Function :
+ *      cbx_meter_control_get
+ * Purpose  :
+ *      Meter control type get
+ *
+ * Parameters:
+ *      meter_ctrl   (IN/OUT)  Meter control type
+ *
+ * Returns:
+ *      CBX_E_NONE Success
+ *      CBX_E_XXXX Failure
+ */
+int
+cbx_meter_control_get(cbx_meter_control_t *meter_ctrl) {
+    if (meter_ctrl == NULL) {
+        return CBX_E_PARAM;
+    }
+    *meter_ctrl = cbx_meter_ctrl;
+    return CBX_E_NONE;
+}

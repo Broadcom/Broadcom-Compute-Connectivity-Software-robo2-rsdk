@@ -637,36 +637,6 @@ cbxi_mcast_entry_set(int unit, uint32_t  mcast,
 
 /*
  * Function:
- *  cbxi_mcast_pe_shared_lag_update
- * Purpose:
- *  Update any changes to shared LAG lpgid in all mcast groups
- */
-int
-cbxi_mcast_pe_shared_lag_update(
-                cbx_portid_t lagid, cbx_portid_t portid)
-{
-    cbx_mcast_sw_info_t *cmi = &cbx_mcast_sw_info;
-    cbx_mcastid_t mcastid;
-    uint32_t mcast;
-    int rv;
-
-    SHR_BIT_ITER(cmi->mcast_bitmap, cmi->mcast_max, mcast) {
-        CBX_PORTID_MCAST_ID_SET(mcastid, mcast);
-        /* Try to remove previous LAG port entry from MCAST */
-        rv = cbxi_mcast_member_update(mcast, portid, CBXI_MCAST_MEMBER_REMOVE);
-        /* If the entry was present, add the shared LAG back  */
-        if ((rv == CBX_E_NONE) && (lagid != CBX_LAG_INVALID)) {
-            /* Remove and add back the LAG entry to Update lpgid and rlpgid info */
-            rv = cbxi_mcast_member_update(mcast, lagid, CBXI_MCAST_MEMBER_REMOVE);
-            CBX_IF_ERROR_RETURN(cbx_mcast_member_add(mcastid, lagid));
-        }
-    }
-
-    return CBX_E_NONE;
-}
-
-/*
- * Function:
  *  cbxi_mcast_member_update
  * Purpose:
  *  Main body of cbx_mcast_member_add/remove;
@@ -678,9 +648,6 @@ cbxi_mcast_member_update(uint32 mcast, cbx_portid_t  portid, int flags)
     cbx_mcast_sw_info_t *cmi = &cbx_mcast_sw_info;
     cbx_mcast_lilt_mode_t lilt_mode;
     cbx_port_params_t port_params;
-#ifdef CONFIG_PORT_EXTENDER
-    mtgt_t ent_mtgt;
-#endif /* CONFIG_PORT_EXTENDER */
     int unit = CBX_AVENGER_PRIMARY;
     dgt_t ent_dgt;
     cbx_portid_t lagid;
@@ -823,15 +790,12 @@ cbxi_mcast_member_update(uint32 mcast, cbx_portid_t  portid, int flags)
 #ifdef CONFIG_PORT_EXTENDER
             if (cbxi_check_port_extender_mode() == CBX_E_NONE) {
                 if (port_params.port_type != cbxPortTypeCascade){
-#if 1/* PE loopback solution: Trunk members are added as DLIs */
+                /* PE : Trunk members are added as DLIs */
                     CBX_IF_ERROR_RETURN(cbxi_pe_port_sli_get(portid, &id));
                     lilt_ent = CBXI_MCAST_PACKED_DLI_LIN_GET(id);
-#endif
                 } else {
-                    CBX_IF_ERROR_RETURN(soc_robo2_mtgt_get(
-                        unit, (TRAP_GROUP_TRAP2CASC + 64), &ent_mtgt));
-                    id = ent_mtgt.dli_n;
-                    lilt_ent = CBXI_MCAST_PACKED_DLI_LIN_GET(id);
+                    /* Add AVG CSD port as PV type LI */
+                    lilt_ent = CBXI_MCAST_PACKED_DLI_PV_GET(global_pg);
                 }
             }
 #endif /* CONFIG_PORT_EXTENDER */
@@ -845,15 +809,12 @@ cbxi_mcast_member_update(uint32 mcast, cbx_portid_t  portid, int flags)
 #ifdef CONFIG_PORT_EXTENDER
                 if (cbxi_check_port_extender_mode() == CBX_E_NONE) {
                     if (port_params.port_type != cbxPortTypeCascade){
-#if 1/* PE loopback solution: Trunk members are added as DLIs */
+                        /* PE : Trunk members are added as DLIs */
                         CBX_IF_ERROR_RETURN(cbxi_pe_port_sli_get(portid, &id));
                         lilt_ent = CBXI_MCAST_PACKED_DLI_LIN_GET(id);
-#endif
                     } else {
-                        CBX_IF_ERROR_RETURN(soc_robo2_mtgt_get(
-                            unit, (TRAP_GROUP_TRAP2CASC + 64), &ent_mtgt));
-                        id = ent_mtgt.dli_n;
-                        lilt_ent = CBXI_MCAST_PACKED_DLI_LIN_GET(id);
+                        /* Add AVG CSD port as PV type LI */
+                        lilt_ent = CBXI_MCAST_PACKED_DLI_PV_GET(global_pg);
                     }
                 }
 #endif /* CONFIG_PORT_EXTENDER */
@@ -910,15 +871,12 @@ cbxi_mcast_member_update(uint32 mcast, cbx_portid_t  portid, int flags)
 #ifdef CONFIG_PORT_EXTENDER
         if (cbxi_check_port_extender_mode() == CBX_E_NONE) {
             if (port_params.port_type != cbxPortTypeCascade){
-#if 1/* PE loopback solution: DGT members are added as PV type for non PE extender ports */
+                /* PE : Trunk members are added as DLIs */
                 CBX_IF_ERROR_RETURN(cbxi_pe_port_sli_get(portid, &id));
                 lilt_ent = CBXI_MCAST_PACKED_DLI_LIN_GET(id);
-#endif
             } else {
-                CBX_IF_ERROR_RETURN(soc_robo2_mtgt_get(
-                    unit, (TRAP_GROUP_TRAP2CASC + 64), &ent_mtgt));
-                id = ent_mtgt.dli_n;
-                lilt_ent = CBXI_MCAST_PACKED_DLI_LIN_GET(id);
+                /* Add AVG CSD port as PV type LI */
+                lilt_ent = CBXI_MCAST_PACKED_DLI_PV_GET(global_pg);
             }
         }
 #endif /* CONFIG_PORT_EXTENDER */
@@ -1057,17 +1015,6 @@ int cbx_mcast_destroy(cbx_mcastid_t mcastid)
 int cbx_mcast_member_add(cbx_mcastid_t mcastid, cbx_portid_t  portid)
 {
     cbx_mcast_sw_info_t *cmi = &cbx_mcast_sw_info;
-#ifdef CONFIG_PORT_EXTENDER
-    cbxi_extender_mode_t pe_mode;
-    int unit = 0;
-    uint8_t num_units = 1;
-    uint32_t flags_u0 = 0;
-#endif
-#if 0
-    cbx_port_params_t port_params;
-    cbx_l2_entry_t    l2entry;
-    uint32_t e_cid = 0;
-#endif
     uint32_t mcast, flags;
     int rv = 0;
 
@@ -1099,53 +1046,6 @@ int cbx_mcast_member_add(cbx_mcastid_t mcastid, cbx_portid_t  portid)
     flags = CBXI_MCAST_MEMBER_ADD;
     CBX_IF_ERROR_RETURN(cbxi_mcast_member_update(mcast, portid, flags));
 
-#ifdef CONFIG_PORT_EXTENDER
-    /* PE loopback solution: Add loopback ports to MCAST groups */
-    /* Add Port 14 for transit PE */
-    /*FIXME:
-     * Access PE : LB port not required. Do not add
-     * Transit PE: Add LB port only when an PE Extender port is present */
-
-    CBX_IF_ERROR_RETURN(cbxi_pe_mode_get(&pe_mode));
-
-    if (SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) {
-        num_units = 2;
-    }
-
-    if (pe_mode == cbxiPEModeTransit) {
-        for (unit = 0; unit < num_units; unit ++) {
-            flags = 0;
-            CBX_IF_ERROR_RETURN(cbxi_pe_mcast_lb_check(unit, mcast, &flags));
-            if (!unit) {
-                flags_u0 = flags;
-            }
-        }
-        if ((flags ==  CBXI_MCAST_MEMBER_ADD) ||
-                    (flags_u0 ==  CBXI_MCAST_MEMBER_ADD)) {
-            /* Add LB port on both Avengers even if one of the Avenger units has
-             * an extender port*/
-            for (unit = 0; unit < num_units; unit ++) {
-                CBX_IF_ERROR_RETURN(cbxi_mcast_member_update(mcast,
-                    (CBX_PE_LB_PORT + (unit * CBX_MAX_PORT_PER_UNIT)),
-                                                    CBXI_MCAST_MEMBER_ADD));
-            }
-        }
-    }
-#endif
-
-#if 0 /* PE loopback solution: Separate DLIs not required */
-    CBX_IF_ERROR_RETURN(cbx_port_info_get(portid, &port_params));
-    if (port_params.port_type == cbxPortTypeExtenderCascade) {
-        CBX_IF_ERROR_RETURN(cbxi_pe_mcast_ecid_get(mcastid, &e_cid));
-        if (CHECK_ECID_IS_MCAST(e_cid)) {
-            /* MCAST group L2 entry is present already
-             * Create LIN port to encap MCAST E_CID*/
-            /* L2 entry is not used as it is setup already */
-            CBX_IF_ERROR_RETURN(cbxi_pe_cascade_port_set(
-                                                portid, e_cid, &l2entry));
-        }
-    }
-#endif
     return CBX_E_NONE;
 }
 
@@ -1164,12 +1064,6 @@ int cbx_mcast_member_add(cbx_mcastid_t mcastid, cbx_portid_t  portid)
 int cbx_mcast_member_remove(cbx_mcastid_t mcastid, cbx_portid_t  portid)
 {
     cbx_mcast_sw_info_t *cmi = &cbx_mcast_sw_info;
-#ifdef CONFIG_PORT_EXTENDER
-    cbxi_extender_mode_t pe_mode;
-    int unit = 0;
-    uint8_t num_units = 1;
-    uint32_t flags_u0 = 0;
-#endif
     uint32_t mcast, flags;
     int rv = 0;
 
@@ -1200,39 +1094,6 @@ int cbx_mcast_member_remove(cbx_mcastid_t mcastid, cbx_portid_t  portid)
 
     flags = CBXI_MCAST_MEMBER_REMOVE;
     CBX_IF_ERROR_RETURN(cbxi_mcast_member_update(mcast, portid, flags));
-
-#ifdef CONFIG_PORT_EXTENDER
-    /* PE loopback solution: Remove loopback ports if not required */
-    /*FIXME:
-     * Access PE : LB port not required.
-     * Transit PE: Add LB port only when an PE Extender port is present */
-
-    CBX_IF_ERROR_RETURN(cbxi_pe_mode_get(&pe_mode));
-
-    if (SOC_IS_CASCADED(CBX_AVENGER_PRIMARY)) {
-        num_units = 2;
-    }
-
-    if (pe_mode == cbxiPEModeTransit) {
-        for (unit = 0; unit < num_units; unit ++) {
-            flags = 0;
-            CBX_IF_ERROR_RETURN(cbxi_pe_mcast_lb_check(unit, mcast, &flags));
-            if (!unit) {
-                flags_u0 = flags;
-            }
-        }
-        if ((flags == CBXI_MCAST_MEMBER_REMOVE) &&
-                        (flags_u0 == CBXI_MCAST_MEMBER_REMOVE)) {
-            /* Remove LB port on both units only when there are no extender
-             * ports present in both the units */
-            for (unit = 0; unit < num_units; unit ++) {
-                CBX_IF_ERROR_RETURN(cbxi_mcast_member_update(mcast,
-                    (CBX_PE_LB_PORT + (unit * CBX_MAX_PORT_PER_UNIT)),
-                                                    CBXI_MCAST_MEMBER_REMOVE));
-            }
-        }
-    }
-#endif
 
     return CBX_E_NONE;
 }

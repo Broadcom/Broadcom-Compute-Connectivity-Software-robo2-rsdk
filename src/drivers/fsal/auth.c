@@ -185,7 +185,7 @@ cbxi_robo2_estget_update(int unit,
 
     maxidx = soc_robo2_estget_max_index(unit);
 
-    for (idx = 0; idx<maxidx; idx++) {
+    for (idx = 0; idx <= maxidx; idx++) {
         CBX_IF_ERROR_RETURN(soc_robo2_estget_get(unit, idx, &estget_entry));
         if (flag & CBXI_AUTH_PORT_ADD ) {
             CBX_PBMP_PORT_ADD(estget_entry.tx_ena, pgid);

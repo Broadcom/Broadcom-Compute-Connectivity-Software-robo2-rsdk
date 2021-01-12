@@ -91,7 +91,7 @@ extern int tx_dump_packet;
 int init = 0, rx_pkt_reaped = 0;
 int chain_active = 0;
 int enq_done_hw = 0;
-int enq_hw_tx = -1, intr = 0;
+int enq_hw_tx = 0, intr = 0;
 
 uint32 tx_cnt = 0 , rx_cnt = 0;
 uint32 tx_err = 0 , rx_err = 0;
@@ -125,90 +125,95 @@ hpa_read_desc(int descid, hpa_desc_t *desc, int dir)
     desc->words[0] = 0;
     desc->words[1] = 0;
     desc->words[2] = 0;
+    /*
+     * Always read the OWN flag first, so that if it indicates that control of
+     * the descriptor has been transferred to the CPU, the contents of the
+     * other fields will always be read afterward here and thus be valid.
+     */
     if (dir == HPA_TX) {
         switch(descid) {
         case 0:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC0_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC0_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC0_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC0_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 1:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC1_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC1_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC1_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC1_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 2:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC2_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC2_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC2_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC2_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 3:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC3_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC3_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC3_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC3_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 4:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC4_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC4_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC4_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC4_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 5:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC5_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC5_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC5_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC5_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 6:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC6_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC6_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC6_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC6_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 7:
+            REG_READ_AVR_HPA_BLOCK_TX_DESC7_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC7_HPA_TX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_TX_DESC7_HPA_TX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_TX_DESC7_HPA_TX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         }
     } else {
         switch(descid) {
         case 0:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC0_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC0_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC0_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC0_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 1:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC1_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC1_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC1_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC1_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 2:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC2_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC2_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC2_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC2_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 3:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC3_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC3_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC3_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC3_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 4:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC4_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC4_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC4_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC4_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 5:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC5_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC5_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC5_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC5_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 6:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC6_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC6_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC6_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC6_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         case 7:
+            REG_READ_AVR_HPA_BLOCK_RX_DESC7_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC7_HPA_RX_DESCRIPTOR_31_0r(CBX_AVENGER_PRIMARY, &desc->words[0]);
             REG_READ_AVR_HPA_BLOCK_RX_DESC7_HPA_RX_DESCRIPTOR_63_32r(CBX_AVENGER_PRIMARY, &desc->words[1]);
-            REG_READ_AVR_HPA_BLOCK_RX_DESC7_HPA_RX_DESCRIPTOR_127_96r(CBX_AVENGER_PRIMARY, &desc->words[2]);
             break;
         }
     }
@@ -348,40 +353,40 @@ hpa_dma_status_dump(void)
 {
     uint32 regval = 0;
     regval = hpa_dma_status_get();
-    if (regval & HPA_DMA_STATUS_STOPPED) {
+    if (regval == HPA_DMA_STATUS_STOPPED) {
         sal_printf("Tx DMA is stopped\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_REQUEST) {
+    } else if (regval == HPA_DMA_STATUS_AXI_REQUEST) {
         sal_printf("Tx Waiting for AXI Request\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_RESPONSE) {
+    } else if (regval == HPA_DMA_STATUS_AXI_RESPONSE) {
         sal_printf("Tx Waiting for AXI Request\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_DATA_XFER) {
+    } else if (regval == HPA_DMA_STATUS_AXI_DATA_XFER) {
         sal_printf("Tx DMA in progress\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_ERR_RECOVERY) {
+    } else if (regval == HPA_DMA_STATUS_AXI_ERR_RECOVERY) {
         sal_printf("Tx recovering from the Error state\n");
-    } else if (regval & HPA_DMA_STATUS_WAIT_FOR_DESCR) {
+    } else if (regval == HPA_DMA_STATUS_WAIT_FOR_DESCR) {
         sal_printf("Tx waiting for the processor to create the descriptor\n");
-    } else if (regval & HPA_DMA_STATUS_INCR_DESCR_PTR) {
+    } else if (regval == HPA_DMA_STATUS_INCR_DESCR_PTR) {
         sal_printf("Tx updating the Descriptor pointer\n");
-    } else if (regval & HPA_DMA_STATUS_CLOSE_DESCR) {
+    } else if (regval == HPA_DMA_STATUS_CLOSE_DESCR) {
         sal_printf("Tx closing descriptor and hand-over back to processor\n");
     }
 
     regval >>= 4;
-    if (regval & HPA_DMA_STATUS_STOPPED) {
+    if (regval == HPA_DMA_STATUS_STOPPED) {
         sal_printf("Rx DMA is stopped\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_REQUEST) {
+    } else if (regval == HPA_DMA_STATUS_AXI_REQUEST) {
         sal_printf("Rx Waiting for AXI Request\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_RESPONSE) {
+    } else if (regval == HPA_DMA_STATUS_AXI_RESPONSE) {
         sal_printf("Rx Waiting for AXI Request\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_DATA_XFER) {
+    } else if (regval == HPA_DMA_STATUS_AXI_DATA_XFER) {
         sal_printf("Rx DMA in progress\n");
-    } else if (regval & HPA_DMA_STATUS_AXI_ERR_RECOVERY) {
+    } else if (regval == HPA_DMA_STATUS_AXI_ERR_RECOVERY) {
         sal_printf("Rx recovering from the Error state\n");
-    } else if (regval & HPA_DMA_STATUS_WAIT_FOR_DESCR) {
+    } else if (regval == HPA_DMA_STATUS_WAIT_FOR_DESCR) {
         sal_printf("Rx waiting for the processor to create the descriptor\n");
-    } else if (regval & HPA_DMA_STATUS_INCR_DESCR_PTR) {
+    } else if (regval == HPA_DMA_STATUS_INCR_DESCR_PTR) {
         sal_printf("Rx updating the Descriptor pointer\n");
-    } else if (regval & HPA_DMA_STATUS_CLOSE_DESCR) {
+    } else if (regval == HPA_DMA_STATUS_CLOSE_DESCR) {
         sal_printf("Rx closing descriptor and hand-over back to processor\n");
     }
 }
@@ -595,7 +600,7 @@ hpa_tx_clean_desc(int idx)
 int
 hpa_tx_done_isr(void)
 {
-    wake_up_rxtask();
+    hpa_tx_done();
     return SOC_E_NONE;
 }
 
@@ -674,7 +679,7 @@ hpa_tx_packet(void *buffer, int buffer_size)
     }
     sal_memset(&hpadesc, 0, sizeof(hpadesc));
     m7_disable_intr();
-    descid = (enq_hw_tx + 1) % HPA_MAX_HW_TX_DESCR;
+    descid = enq_hw_tx;
     hpa_read_desc(descid, &hpadesc, HPA_TX);
     if (hpadesc.desc.own != HPA_OWN_HPA) {
         m7_dcache_flush((uint32*)buffer, buffer_size);
@@ -685,7 +690,7 @@ hpa_tx_packet(void *buffer, int buffer_size)
         hpadesc.desc.ioc = 1;
         hpadesc.desc.own = HPA_OWN_HPA;
         hpa_write_desc(descid, &hpadesc, HPA_TX);
-        enq_hw_tx++;
+        enq_hw_tx = (enq_hw_tx + 1) % HPA_MAX_HW_TX_DESCR;
         tx_cnt++;
         REG_READ_AVR_HPA_BLOCK_CTRL_STS_HPA_TX_CPU_CUR_DESC_PTRr(CBX_AVENGER_PRIMARY, &hwcur);
         hwcur = (hwcur + 1) % 16;

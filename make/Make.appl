@@ -53,6 +53,12 @@ ifeq ($(CONFIG_IP_STACK),1)
      export CONFIG_RSTP ?= 1
 endif
 
+# Enable 802.1as stack
+ifeq ($(CONFIG_DOT1AS),1)
+     export CONFIG_PTP = 1
+     export CONFIG_TIMESYNC = 1
+endif
+
 # Enable cint + web server
 ifeq ($(CONFIG_CINT_WITH_WEB_SERVER),1)
      export CFLAGS += -DCONFIG_CINT_WITH_WEB_SERVER=1

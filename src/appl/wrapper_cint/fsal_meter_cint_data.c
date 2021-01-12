@@ -64,7 +64,12 @@ CINT_FWRAPPER_CREATE_RP2(int, int, 0, 0,
                          cbx_meterid_t, cbx_meterid_t, meterid, 0, 0,
                          cbx_meter_pm_params_t*, cbx_meter_pm_params_t,
                          pm_params, 1, 0);
-
+CINT_FWRAPPER_CREATE_RP1(int, int, 0, 0,
+                         cbx_meter_control_set,
+                         cbx_meter_control_t, cbx_meter_control_t, meter_ctrl, 0, 0);
+CINT_FWRAPPER_CREATE_RP1(int, int, 0, 0,
+                         cbx_meter_control_get,
+                         cbx_meter_control_t *, cbx_meter_control_t, meter_ctrl, 1, 0);
 
 
 static void*
@@ -377,6 +382,12 @@ static cint_enum_map_t __cint_enum_map__cbx_dp_t[] =
     CINT_ENTRY_LAST
 };
 
+static cint_enum_map_t __cint_enum_map__cbx_meter_control_t[] =
+{
+    { "cbxMeterControlPortTC", cbxMeterControlPortTC },
+    { "cbxMeterControlPort", cbxMeterControlPort },
+    CINT_ENTRY_LAST
+};
 
 static cint_enum_type_t __cint_fsal_meter_enums[] =
 {
@@ -384,6 +395,7 @@ static cint_enum_type_t __cint_fsal_meter_enums[] =
     { "cbx_meter_mode_t", __cint_enum_map__cbx_meter_mode_t },
     { "cbx_traffic_type_t", __cint_enum_map__cbx_traffic_type_t },
     { "cbx_dp_t", __cint_enum_map__cbx_dp_t },
+    { "cbx_meter_control_t", __cint_enum_map__cbx_meter_control_t },
     CINT_ENTRY_LAST
 };
 
@@ -432,6 +444,8 @@ static cint_function_t __cint_fsal_meter_functions[] =
         CINT_FWRAPPER_ENTRY(cbx_meter_pm_enable),
         CINT_FWRAPPER_ENTRY(cbx_meter_pm_disable),
         CINT_FWRAPPER_ENTRY(cbx_meter_pm_get),
+        CINT_FWRAPPER_ENTRY(cbx_meter_control_set),
+        CINT_FWRAPPER_ENTRY(cbx_meter_control_get),
         CINT_ENTRY_LAST
     };
 

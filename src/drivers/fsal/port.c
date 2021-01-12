@@ -126,6 +126,7 @@ cbxi_cascade_port_delete(cbx_portid_t portid)
             (BSL_META("FSAL API:Port validation failed for %d \n"), portid));
         return CBX_E_PARAM;
     }
+
     CBX_IF_ERROR_RETURN(REG_READ_CB_PQM_CASCADEr(unit, &regval));
     soc_CB_PQM_CASCADEr_field_get(unit, &regval, LSPGIDf, &oldlpg);
     if (lpg == oldlpg) {
@@ -152,6 +153,15 @@ cbxi_cascade_port_delete(cbx_portid_t portid)
            start++;
        }
     }
+#ifdef CONFIG_PORT_EXTENDER
+    CBX_IF_ERROR_RETURN(REG_READ_CB_PQM_CASCADEr(unit, &regval));
+    soc_CB_PQM_CASCADEr_field_get(unit, &regval, PPFOVf, &fval);
+    /* Do not retain decaped headers at egress */
+    REG_READ_CB_PQM_PDr(unit, &regval);
+    regval &= ~((uint32_t)fval);
+    REG_WRITE_CB_PQM_PDr(unit, &regval);
+#endif
+
     return CBX_E_NONE;
 }
 
@@ -207,6 +217,19 @@ cbxi_cascade_port_add(cbx_portid_t portid)
         CBX_IF_ERROR_RETURN(cbxi_slic_pgmap_set(
                                         unit, SLIC_CSD_DEV0_FWD, pg_map));
     }
+
+#ifdef CONFIG_PORT_EXTENDER
+    /* Enbale CSD header alternatively */
+    if (!unit) {
+        CBX_IF_ERROR_RETURN(cbxi_slic_pgmap_get(
+                                        unit, SLIC_CSD_DEV1_DROP, &pg_map));
+        CBX_PBMP_PORT_ADD(pg_map, lpg);
+        CBX_IF_ERROR_RETURN(cbxi_slic_pgmap_set(
+                                        unit, SLIC_CSD_DEV1_DROP, pg_map));
+        CBX_IF_ERROR_RETURN(cbxi_slic_pgmap_set(
+                                        unit, SLIC_CSD_DEV0_FWD, pg_map));
+    }
+#endif /* CONFIG_PORT_EXTENDER */
 
     if (CBX_FAILURE(rv)) {
         LOG_ERROR(BSL_LS_FSAL_PORT,
@@ -296,6 +319,14 @@ cbxi_cascade_port_add(cbx_portid_t portid)
 
 #ifdef CONFIG_PORT_EXTENDER
     CBX_IF_ERROR_RETURN(cbxi_pe_avg_csd_config());
+
+    CBX_IF_ERROR_RETURN(REG_READ_CB_PQM_CASCADEr(unit, &regval));
+    soc_CB_PQM_CASCADEr_field_get(unit, &regval, PPFOVf, &fval);
+    /* Retain Decaped headers at egress */
+    REG_READ_CB_PQM_PDr(unit, &regval);
+    regval |= ((uint32_t)fval);
+    REG_WRITE_CB_PQM_PDr(unit, &regval);
+
 #endif
     return rv;
 }
@@ -486,7 +517,7 @@ cbxi_port_table_init() {
         /* Global PG starts from 16 for Secondary Avenger */
         if (i == CBX_AVENGER_SECONDARY) {
             index = 0;
-            while (index < max_index) {
+            while (index <= max_index) {
                 lpg2pg_entry.pg = index + CBX_MAX_PORT_PER_UNIT;
                 CBX_IF_ERROR_RETURN(soc_robo2_lpg2pg_set(i, index,
                                                 &lpg2pg_entry, &status));
@@ -736,8 +767,10 @@ cbxi_port_egress_info_set( int unit,
         CBX_EPP_INSERT_CB_IMP_TAG(&encap_record);
 #endif
     } else if (port_params->port_type == cbxPortTypeCascade) {
+#ifndef CONFIG_PORT_EXTENDER
         /* Insert Cascade Header, No Timestamping */
         CBX_EPP_INSERT_CB_CASCADE_TAG(&encap_record);
+#endif
         CBX_IF_ERROR_RETURN(REG_READ_NPA_NPA_TLV_CONTROLr(unit, &regval));
         regval |= (0x1 << (uint32)port);
         CBX_IF_ERROR_RETURN(REG_WRITE_NPA_NPA_TLV_CONTROLr(unit, &regval));
@@ -865,6 +898,7 @@ cbxi_port_info_set( int unit,
     pgt_entry.arb5 = 2;
     pgt_entry.arb6 = 1;
     pgt_entry.arb7 = 1;
+    pgt_entry.pri_base2 = pgt_entry.pri_base1; /* C-tag, S-tag use the same TC,DP entry in CPMT */
 
     /* *************** Native type mismatch work-around *************** */
     /* WAR#4 for port 15 (ipv4/ipv6 parsing disabled)
@@ -1001,6 +1035,10 @@ cbxi_port_info_set( int unit,
 
     if (port_params->port_type == cbxPortTypeProvider) {
         pgt_entry.stag_en = 1;
+    }
+
+    if (port_params->port_type == cbxPortTypePortVLAN) {
+        pgt_entry.ctag_en = 0;
     }
 
     /* Update PGT entry */
@@ -1377,6 +1415,7 @@ cbxi_port_speed_support_check(int unit,  cbx_port_t port, int speed ) {
  */
 int
 cbxi_port_speed_set(int unit,  cbx_port_t port, int speed ) {
+    uint32 en;
     int rv = CBX_E_NONE;
 #ifdef CONFIG_QSGMII
     if ((port >=8) && (port <=11)) {
@@ -1392,6 +1431,13 @@ cbxi_port_speed_set(int unit,  cbx_port_t port, int speed ) {
                                  is not supported on port %d\n"),speed, port));
     }
     if (CBX_FAILURE(rv)) {
+        return rv;
+    }
+    rv = MAC_ENABLE_GET(port_info[unit][port].p_mac, unit, port, &en);
+    if (CBX_FAILURE(rv)) {
+        LOG_ERROR(BSL_LS_FSAL_PORT,
+            (BSL_META("FSAL API : cbxi_port_speed_set().. Unable to get admin "
+                      "status on port %d\n"), port));
         return rv;
     }
 #ifndef EMULATION_BUILD
@@ -1475,13 +1521,15 @@ cbxi_port_speed_set(int unit,  cbx_port_t port, int speed ) {
         }
     }
 #endif
-    /* Enable MAC */
-    rv = MAC_ENABLE_SET(port_info[unit][port].p_mac, unit, port, TRUE);
-    if (CBX_FAILURE(rv)) {
-        LOG_ERROR(BSL_LS_FSAL_PORT,
+    /* Re-enable MAC, if enabled before */
+    if (en) {
+        rv = MAC_ENABLE_SET(port_info[unit][port].p_mac, unit, port, TRUE);
+        if (CBX_FAILURE(rv)) {
+            LOG_ERROR(BSL_LS_FSAL_PORT,
                          (BSL_META("FSAL API : cbx_port_speed_set()..Failed  \
-                       to disable MAC as part of port speed set \n")));
-        return rv;
+                           to enable MAC as part of port speed set \n")));
+            return rv;
+        }
     }
     return CBX_E_NONE;
 }
@@ -2089,6 +2137,11 @@ cbxi_port_info_get(int unit, cbx_port_t port_out,
     if (pgt_entry.drop_mlf == 1) {
         port_params->flags |= CBX_PORT_DROP_MLF;
     }
+
+    if (pgt_entry.ctag_en == 0) {
+        port_params->port_type = cbxPortTypePortVLAN;
+    }
+
     port_params->port_group = pgid;
     return CBX_E_NONE;
 }
@@ -2676,10 +2729,21 @@ cbx_port_create(cbx_port_params_t *port_params,
     /* Update port created pbmp */
     CBX_PBMP_PORT_ADD(pp_created_pbmp[unit], port_out);
 
-    /* Enable MAC */
     if(IS_LOCAL_CPU_PORT(unit, port_out)) {
         return rv;
     }
+#ifdef CONFIG_WEB_SERVER
+    /* Ensure MAC is disabled until the configuration is loaded later */
+    rv = MAC_ENABLE_SET(port_info[unit][port_out].p_mac,
+                                unit, port_out, FALSE);
+    if (CBX_FAILURE(rv)) {
+        LOG_ERROR(BSL_LS_FSAL_PORT,
+            (BSL_META("FSAL API : cbx_port_create()..Failed  \
+                        to disable MAC as part of port create \n")));
+        return rv;
+    }
+#else
+    /* Enable MAC */
     rv = MAC_ENABLE_SET(port_info[unit][port_out].p_mac,
                                 unit, port_out, TRUE);
     if (CBX_FAILURE(rv)) {
@@ -2688,7 +2752,7 @@ cbx_port_create(cbx_port_params_t *port_params,
                         to enable MAC as part of port create \n")));
         return rv;
     }
-
+#endif
 #ifndef EMULATION_BUILD
     rv = cbxi_port_link_status_get(unit, port_out, &link_status);
 #endif

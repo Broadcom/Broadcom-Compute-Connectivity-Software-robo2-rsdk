@@ -910,7 +910,7 @@ bcmi_tsce_xgxs_init(phy_ctrl_t *pc)
 #endif
 #if defined(CONFIG_10G_INTF_KR)
             if_cfg->interface_type  = phymodInterfaceKR;
-            if_cfg->interface_modes = 0;
+            if_cfg->interface_modes = 2;
 #endif
 #if defined(CONFIG_10G_INTF_KX)
             if_cfg->interface_type = phymodInterfaceKX;

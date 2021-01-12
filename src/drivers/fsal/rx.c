@@ -57,10 +57,9 @@ typedef struct rx_cb_s {
     volatile cbxi_pkt_t *rx_buffer_pool_tail;
     volatile cbxi_pkt_t *rx_current_chain;
     volatile int num_buffers_in_pool;
-    volatile int num_empty_buffer_pool;
-    volatile int num_pkts_processed;
-    volatile int num_pkts_enqueued;
-    volatile int num_pkts_dropped;
+    volatile unsigned int num_pkts_processed;
+    volatile unsigned int num_pkts_enqueued;
+    volatile unsigned int num_pkts_dropped;
     volatile int rx_current_chain_len;
     volatile int rx_current_chain_num;
     int rx_current_chain_drop;
@@ -76,13 +75,12 @@ uint8 rx_buffer_region[CBXI_RX_NUM_BUFFERS_MAX * (sizeof(cbxi_pkt_t) + CBXI_RX_B
 
 void rx_dump_stats(void)
 {
-    sal_printf("Rx Num Pkts  Queued   : %d\n", rx_cb.num_pkts_enqueued);
-    sal_printf("Rx Num Pkts Handled   : %d\n", rx_cb.num_pkts_processed);
-    sal_printf("Rx Num Pkts Dropped   : %d\n", rx_cb.num_pkts_dropped);
+    sal_printf("Rx Num Pkts  Queued   : %u\n", rx_cb.num_pkts_enqueued);
+    sal_printf("Rx Num Pkts Handled   : %u\n", rx_cb.num_pkts_processed);
+    sal_printf("Rx Num Pkts Dropped   : %u\n", rx_cb.num_pkts_dropped);
     sal_printf("Rx Num Buffers Pool   : %d\n", rx_cb.num_buffers_in_pool);
-    sal_printf("Rx Num Empty BufPool  : %d\n", rx_cb.num_empty_buffer_pool);
-    sal_printf("Rx BuffAlloc Fails    : %d\n", rx_dma_alloc_fails);
-    sal_printf("Rx Dma BuffAlloc Fails: %d\n", rx_alloc_fails);
+    sal_printf("Rx BuffAlloc Fails    : %d\n", rx_alloc_fails);
+    sal_printf("Rx Dma BuffAlloc Fails: %d\n", rx_dma_alloc_fails);
     sal_printf("Rx Unknown Etypes     : %d\n", rx_unknown_etypes);
 }
 
@@ -140,16 +138,13 @@ cbxi_rx_dqueue(int qid)
 {
     cbxi_pkt_t *pkt = NULL;
 #ifdef TRACE_PKTBUF
-    sal_printf("Dequeued Head: %08x, Num Enqueued:%d\n",
+    sal_printf("Dequeued Head: %08x, Num Enqueued:%u\n",
               rx_cb.rx_pkt_queue_head, rx_cb.num_pkts_enqueued);
 #endif
     m7_disable_intr();
-    if (rx_cb.num_pkts_enqueued > rx_cb.num_pkts_processed) {
+    if (rx_cb.num_pkts_enqueued != rx_cb.num_pkts_processed) {
         if (rx_cb.rx_pkt_queue_head != NULL) {
             pkt = (cbxi_pkt_t*)rx_cb.rx_pkt_queue_head;
-#ifndef CONFIG_STATIC_PKTBUF
-            m7_dcache_invalidate((uint32*)pkt, (pkt->num_bytes + sizeof(cbxi_pkt_t)));
-#endif
             rx_cb.rx_pkt_queue_head = pkt->next;
             if (rx_cb.rx_pkt_queue_head == NULL) {
                 rx_cb.rx_pkt_queue_tail = rx_cb.rx_pkt_queue_head;
@@ -178,9 +173,6 @@ cbxi_rx_enqueue(int qid, void *buffer, int size, int flags)
 
     pkt = CBXI_BUF_TO_PKT(buffer);
     pkt->flags = flags;
-#ifndef CONFIG_STATIC_PKTBUF
-    m7_dcache_flush((uint32*)pkt, sizeof(cbxi_pkt_t));
-#endif
     if ((flags & CBXI_PKT_FLAGS_RX_SOP) && !(flags & CBXI_PKT_FLAGS_RX_EOP)) {
         pkt->num_bytes = size;
         rx_cb.rx_current_chain = pkt;
@@ -287,7 +279,9 @@ cbxi_rx_buffer_pool_release()
 {
     uint8 *ptr;
     while(rx_cb.num_buffers_in_pool > 0) {
+        m7_disable_intr();
         ptr = cbxi_rx_buffer_alloc();
+        m7_enable_intr();
         if (ptr)
             cbxi_pkt_free(ptr);
     }
@@ -322,7 +316,6 @@ cbxi_rx_buffer_free(cbxi_pkt_t *ptr)
     ptr->num_bytes = 0;
     ptr->flags = 0;
     if (rx_cb.rx_buffer_pool_tail) {
-        ptr->prev = (cbxi_pkt_t*)rx_cb.rx_buffer_pool_tail;
         rx_cb.rx_buffer_pool_tail->next = ptr;
         rx_cb.rx_buffer_pool_tail = ptr;
     } else {
@@ -336,6 +329,9 @@ cbxi_rx_buffer_free(cbxi_pkt_t *ptr)
 /*
  * cbxi_rx_buffer_alloc
  *    Allocate a CBXI packet from the pool
+ * Note:
+ *    This function must be called either from a single-threaded context or
+ *    with interrupts disabled.
  */
 void *
 cbxi_rx_buffer_alloc()
@@ -346,25 +342,29 @@ cbxi_rx_buffer_alloc()
                rx_cb.num_buffers_in_pool, rx_cb.rx_buffer_pool_head,
                rx_cb.rx_buffer_pool_tail);
 #endif
-    m7_disable_intr();
     if (rx_cb.num_buffers_in_pool > 0) {
         ptr = (cbxi_pkt_t*)rx_cb.rx_buffer_pool_head;
-        if (ptr != rx_cb.rx_buffer_pool_tail) {
-            rx_cb.rx_buffer_pool_head = ptr->next;
-            rx_cb.num_buffers_in_pool--;
-            ptr->next = ptr->prev = NULL;
+        rx_cb.rx_buffer_pool_head = ptr->next;
+        if (ptr == rx_cb.rx_buffer_pool_tail) {
+            rx_cb.rx_buffer_pool_tail = NULL;
+        }
+        rx_cb.num_buffers_in_pool--;
+        ptr->next = NULL;
 #ifndef CONFIG_STATIC_PKTBUF
-            m7_dcache_flush((uint32*)ptr, sizeof(cbxi_pkt_t));
+         /*
+         * The buffer has been zeroed upon being freed. Make sure that those
+         * writes make it to memory before DMA starts. Also invalidate the
+         * same memory range in the cache, so that the packet contents will
+         * not be hidden by the cache after DMA has completed.
+         */
+         m7_dcache_flush_invalidate((uint32*)ptr->pktbuffer, CBXI_RX_BUFFER_SIZE);
 #endif
 #ifdef TRACE_PKTBUF
             sal_printf("OK Num= %d Buffer Pool Head = %x Tail = %x\n",
                rx_cb.num_buffers_in_pool, rx_cb.rx_buffer_pool_head, rx_cb.rx_buffer_pool_tail);
 #endif
-            m7_enable_intr();
             return CBXI_PKT_TO_BUF(ptr);
-        }
     }
-    m7_enable_intr();
     return (void*)NULL;
 }
 
@@ -385,13 +385,10 @@ cbxi_rx_task(void*params)
 
     rx_task_status = CBXI_THREAD_RUNNING;
     while (rx_task_status != CBXI_THREAD_STOP) {
-        hpa_tx_done();
 #ifndef CONFIG_STATIC_PKTBUF
         if (rx_cb.num_buffers_in_pool < CBXI_RX_NUM_BUFFERS_LOW_THRESHOLD) {
-            m7_disable_intr();
             cbxi_rx_buffer_pool_refill(CBXI_RX_NUM_BUFFERS - rx_cb.num_buffers_in_pool);
             hpa_intr_enable(CBXI_PKT_RX);
-            m7_enable_intr();
         }
 #endif
         pkt = cbxi_rx_dqueue(0);
