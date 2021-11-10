@@ -1,5 +1,5 @@
 /*
- * 
+ *
  * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
  *
  * $Copyright: (c) 2020 Broadcom Inc.
@@ -206,10 +206,11 @@ int soc_packetio_uninit(int unit)
     if (unit > MAX_PKTIO_SOCKETS) {
         return -1;
     }
-    _sys_sockets[unit].thread_stop = 1;
-    sal_usleep(200);
+
     close(_sys_sockets[unit].sockfd);
     sal_memset(&_sys_sockets[unit], 0, sizeof(pktio_cb_t));
+    _sys_sockets[unit].thread_stop = 1; /* fix soc_packetio_recv while() dead loop */
+
     return 0;
 }
 
@@ -286,6 +287,8 @@ int soc_packetio_init(int unit)
         close(sockfd);
         return -1;
     }
+
+    _sys_sockets[unit].thread_stop = 0; /* soc_packetio_uninit() set this to 1 */
 
     /* Start Thread for Rx Processing */
     taskhdl = sal_thread_create("packetio", SAL_THREAD_STKSZ, 1,
