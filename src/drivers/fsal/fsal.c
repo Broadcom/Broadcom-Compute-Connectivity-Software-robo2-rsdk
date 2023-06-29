@@ -1,8 +1,5 @@
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  *
  * File:
@@ -60,6 +57,7 @@
 #include "port_capab.h"
 
 #define CONFIG_LINK_SCAN 1
+#define ARRAY_MAX_SIZE 4
 
 extern int soc_robo2_pkt_flow_init(void);
 extern int soc_robo2_arl_table_init(void);
@@ -83,6 +81,7 @@ extern int cbxi_slicid_map(int unit, cbxi_slic_rule_id_t rule_number, cbxi_slici
 
 int avg_port_create(void)
 {
+    sal_printf("CBX_PORT_ICPU is %d,CBX_PORT_ECPU is %d\n\n", CBX_PORT_ICPU, CBX_PORT_ECPU);
     int max_units = 1, unit, rv = 0;
     int pp, port, idx = 0;
     uint32_t lag, reg_val, chip_id;
@@ -108,7 +107,8 @@ int avg_port_create(void)
         max_units = 2;
     }
     for (unit = 0; unit < max_units; unit++) {
-        sal_printf("Unit %d: PBMP_ALL(unit)=%x\n", unit, PBMP_ALL(unit));
+
+        sal_printf("Unit %d: PBMP_ALL(unit)=%x\n\n", unit, PBMP_ALL(unit));
         /* Read chip ID */
         REG_READ_CRU_CRU_CHIP_ID_REGr(unit, &reg_val);
         chip_id = reg_val & 0xFFFFFF;
@@ -150,7 +150,12 @@ int avg_port_create(void)
 
         CBX_PBMP_ITER(PBMP_ALL(unit), pp) {
             port = pp + (unit * CBX_MAX_PORT_PER_UNIT);
+            sal_printf("init port %d.\n", port);
+            if (port == 2) {
+                continue;
+            }
             cbx_port_params_t_init(&port_params);
+            port_params.flags = CBX_PORT_DROP_UNTAGGED;
             port_params.port_index = port;
             port_params.default_tc = 0;
             port_params.default_dp = 0;
@@ -162,6 +167,7 @@ int avg_port_create(void)
           //  if ((port == CBX_PORT_ICPU) || (port == CBX_PORT_ECPU)) {
           //      port_params.port_type = cbxPortTypeHost;
           //  }
+            sal_printf("Port %d created\n", port);
             rv = cbx_port_create(&port_params, &portid);
             if (rv < 0) {
                 sal_printf("Unit %d: Port Create failed for Port %d rv(%d)\n", unit, port, rv);
@@ -181,7 +187,6 @@ int avg_port_create(void)
             portdb[idx].uport_idx = idx;
             portdb[idx].uport_type = USER_PORT_TYPE_PHYSICAL;
             portdb[idx].fport = portid;
-
             switch (chip_id) {
                 case BCM53162_DEVICE_ID:
                     if ((pp >= 0) && (pp <= 7)) {
@@ -473,35 +478,135 @@ int avg_vlan_config(void)
     int rv = 0;
     cbx_vlan_params_t params;
     cbx_vlanid_t vsiid;
+    cbx_port_params_t set_cbx_port_params_t;
     cbx_vlanid_t vlanid;
     cbx_portid_t portid;
-    uint32_t mode = CBX_VLAN_PORT_MODE_TAGGED;
+    uint32_t mode = CBX_VLAN_PORT_MODE_UNTAGGED;
 
-/* API sequence to initialize required VLAN configuration */
-    /* Create VLAN 3 */
+    /* API sequence to initialize required VLAN configuration */
     cbx_vlan_params_t_init(&params);
+    cbx_port_params_t_init(&set_cbx_port_params_t);
 
-    params.vlan=3;
+    /* Create VLAN 703 */
+    params.vlan = 703;
+    params.flags = CBX_VLAN_PORT_MODE_UNTAGGED;
     rv = cbx_vlan_create(&params, &vsiid);
     if (rv < 0) {
+        sal_printf("Error: Create VLAN 703.\n");
         return rv;
     }
+    sal_printf("Create VLAN 703.\n");
 
-    /* Add port 2 to VLAN 3 */
-    portid = 2;
-    vlanid = 3;
+    /* Create VLAN 704 */
+    params.vlan = 704;
+    params.flags = CBX_VLAN_PORT_MODE_UNTAGGED;
+    rv = cbx_vlan_create(&params, &vsiid);
+    if (rv < 0) {
+        sal_printf("Error: Create VLAN 704.\n");
+        return rv;
+    }
+    sal_printf("Create VLAN 704.\n");
+
+    /* Set port type cbxPortTypePortVLAN=7 */
+    set_cbx_port_params_t.port_type = 7;
+    rv = cbx_port_info_set(0, &set_cbx_port_params_t);
+    if (rv != 0) {
+        sal_printf("set port0 type 7 failure.\n");
+        return rv;
+    }
+    sal_printf("set port0 type 7.\n");
+    rv = cbx_port_info_set(1, &set_cbx_port_params_t);
+    if (rv != 0) {
+        sal_printf("set port1 type 7 failure.\n");
+        return rv;
+    }
+    sal_printf("set port1 type 7.\n");
+    rv = cbx_port_info_set(12, &set_cbx_port_params_t);
+    if (rv != 0) {
+        sal_printf("set port12 type 7 failure.\n");
+        return rv;
+    }
+    sal_printf("set port12 type 7.\n");
+    rv = cbx_port_info_set(13, &set_cbx_port_params_t);
+    if (rv != 0) {
+        sal_printf("set port13 type 7 failure.\n");
+        return rv;
+    }
+    sal_printf("set port13 type 7.\n");
+
+    /* Set pvid
+     * port0  = pvid 703
+     * port13 = pvid 703
+     * port1  = pvid 704
+     * port12 = pvid 704
+     */
+    rv = cbx_vlan_port_pvid_set(703, 0);
+    if (rv != 0) {
+        sal_printf("set port0 pvid=703 failue");
+        return rv;
+    }
+    sal_printf("set port0 pvid=703");
+    rv = cbx_vlan_port_pvid_set(703, 13);
+    if (rv != 0) {
+        sal_printf("set port13 pvid=703 failue");
+        return rv;
+    }
+    sal_printf("set port13 pvid=703");
+    rv = cbx_vlan_port_pvid_set(704, 1);
+    if (rv != 0) {
+        sal_printf("set port1 pvid=704 failue");
+        return rv;
+    }
+    sal_printf("set port1 pvid=704");
+    rv = cbx_vlan_port_pvid_set(704, 12);
+    if (rv != 0) {
+        sal_printf("set port12 pvid=704 failue");
+        return rv;
+    }
+    sal_printf("set port12 pvid=704");
+
+    /* Set port vlan
+     * port0  = vlan 703
+     * port13 = vlan 703
+     * port1  = vlan 704
+     * port12 = vlan 704
+     */
+    portid = 0;
+    vlanid = 703;
     rv = cbx_vlan_port_add(vlanid, portid, mode);
     if (rv < 0) {
+        sal_printf("Error: Add port 0 to VLAN 703.\n");
         return rv;
     }
+    sal_printf("Add port 0 to VLAN 703.\n");
 
-    /* Add port 3 to VLAN 3 */
-    portid = 3;
-    vlanid = 3;
+    portid = 13;
+    vlanid = 703;
     rv = cbx_vlan_port_add(vlanid, portid, mode);
     if (rv < 0) {
+        sal_printf("Error: Add port 13 to VLAN 703.\n");
         return rv;
     }
+    sal_printf("Add port 13 to VLAN 703.\n");
+
+    portid = 1;
+    vlanid = 704;
+    rv = cbx_vlan_port_add(vlanid, portid, mode);
+    if (rv < 0) {
+        sal_printf("Error: Add port 1 to VLAN 704.\n");
+        return rv;
+    }
+    sal_printf("Add port 1 to VLAN 704.\n");
+
+    portid = 12;
+    vlanid = 704;
+    rv = cbx_vlan_port_add(vlanid, portid, mode);
+    if (rv < 0) {
+        sal_printf("Error: Add port 12 to VLAN 704.\n");
+        return rv;
+    }
+    sal_printf("Add port 12 to VLAN 704.\n");
+
     return rv;
 }
 
@@ -1278,12 +1383,14 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_slictcam_init: rv = %d\n"), rv));
+        return rv;
     }
     sal_printf("cbxi_lin_init()\n");
     rv = cbxi_lin_init();
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_lin_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbxi_encap_init()\n");
@@ -1291,25 +1398,29 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_encap_init: rv = %d\n"), rv));
+        return rv;
     }
     sal_printf("cbx_port_init()\n");
     rv = cbx_port_init();
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_port_init: rv = %d\n"), rv));
+        return rv;
     }
     sal_printf("cbx_lag_init()\n");
     rv = cbx_lag_init();
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_lag_init: rv = %d\n"), rv));
+        return rv;
     }
     //Fix me
-    sal_printf("cbx_port_create()\n");
+    sal_printf("avg_port_create()\n");
     rv = avg_port_create();
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("avg_port_create: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbxi_trap_init()\n");
@@ -1317,6 +1428,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_trap_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbxi_stg_init()\n");
@@ -1324,6 +1436,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_stg_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbxi_vlan_init()\n");
@@ -1331,6 +1444,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_vlan_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbxi_l2_init()\n");
@@ -1338,6 +1452,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_l2_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbxi_mcast_init()\n");
@@ -1345,6 +1460,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_mcast_init: rv = %d\n"), rv));
+        return rv;
     }
 #ifdef CONFIG_PTP
     sal_printf("cbx_ptp_init()\n");
@@ -1352,6 +1468,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_ptp_init: rv = %d\n"), rv));
+        return rv;
     }
 #endif
 
@@ -1361,6 +1478,7 @@ cbx_fsal_init(void)
     if (rv < 0){
       LOG_ERROR(BSL_LS_FSAL_COMMON,
        (BSL_META("ts_init: rv = %d\n"), rv));
+       return rv;
     }
 #endif
 
@@ -1369,6 +1487,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_mirror_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbx_meter_init()\n");
@@ -1376,6 +1495,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_meter_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbx_cosq_init()\n");
@@ -1383,6 +1503,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbxi_cosq_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbx_stat_init()\n");
@@ -1390,6 +1511,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_stat_init: rv = %d\n"), rv));
+        return rv;
     }
 
     sal_printf("cbx_cfp_init()\n");
@@ -1398,9 +1520,12 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_stat_init: rv = %d\n"), rv));
+        return rv;
     }
 #ifndef CONFIG_EXTERNAL_HOST
+    sal_printf("cfp_dhcp_action_add()\n");
     cfp_dhcp_action_add(cfpid);
+    sal_printf("cfp_udf_dhcp_rule_add()\n");
     cfp_udf_dhcp_rule_add(cfpid, 0);
 #endif
 
@@ -1417,12 +1542,15 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_auth_init: rv = %d\n"), rv));
+        return rv;
     }
 
-#if 0
+#if 1
+    sal_printf("avg_vlan_config()\n");
     rv = avg_vlan_config();
     if (rv < 0) {
         sal_printf("avg_vlan_config: rv = %d\n", rv);
+        return rv;
     }
 
 #endif
@@ -1432,6 +1560,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_lif_init: rv = %d\n"), rv));
+        return rv;
     }
 #endif
 
@@ -1443,12 +1572,14 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_link_scan_init: rv = %d\n"), rv));
+        return rv;
     }
     sal_printf("cbx_link_scan_enable_set()\n");
     rv = cbx_link_scan_enable_set(&link_scan_params);
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_link_scan_enable_set: rv = %d\n"), rv));
+        return rv;
     }
 #endif
 
@@ -1459,6 +1590,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_extender_init: rv = %d\n"), rv));
+        return rv;
     }
 #ifndef CONFIG_EXTERNAL_HOST
 #if 0 /* Sample configuration */
@@ -1467,6 +1599,7 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_extender_init: rv = %d\n"), rv));
+        return rv;
     }
 #endif
 #endif /* !CONFIG_EXTERNAL_HOST */
@@ -1478,18 +1611,23 @@ cbx_fsal_init(void)
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("cbx_pktio_init: rv = %d\n"), rv));
+        return rv;
     }
     /* Complete all the module inits */
+    sal_printf("soc_robo2_pkt_flow_init()\n");
     rv = soc_robo2_pkt_flow_init();
     if (rv < 0) {
         LOG_ERROR(BSL_LS_FSAL_COMMON,
             (BSL_META("soc_robo2_pkt_flow_init: rv = %d\n"), rv));
+        return rv;
     }
 #ifdef CONFIG_VIRTUAL_PORT_SUPPORT
 #if 0
+    sal_printf("avg_lif_config()\n");
     rv = avg_lif_config();
     if (rv < 0) {
         sal_printf("avg_lif_config: rv = %d\n", rv);
+        return rv;
     }
 #endif
 #endif
@@ -1504,6 +1642,7 @@ cbx_fsal_init(void)
         if (rv < 0) {
             LOG_ERROR(BSL_LS_FSAL_COMMON,
                 (BSL_META("avg_cascade_init: rv = %d\n"), rv));
+            return rv;
         }
     }
 #endif
@@ -1611,4 +1750,186 @@ void cutthru_disable(void)
 
 }
 
+int bcm_cbx_vlan_get(uint32_t vlanid)
+{
+    int rv = 0;
+    cbx_vlan_params_t bcm_cbx_vlan_params_t;
+    rv = cbx_vlan_get(vlanid, &bcm_cbx_vlan_params_t);
+    if (rv != 0) {
+        if (rv == SOC_E_NOT_FOUND) {
+            sal_res_printf("VLAN %d is not exists\n", vlanid);
+        }
+        return rv;
+    }
+    sal_res_printf("vlan%d exist\n", vlanid);
+    sal_res_printf("vlan%d flags is %d\n", vlanid, bcm_cbx_vlan_params_t.flags);
+    sal_res_printf("vlan%d vlan is %d\n", vlanid, bcm_cbx_vlan_params_t.vlan);
+    sal_res_printf("vlan%d learn_mode is %d\n", vlanid, bcm_cbx_vlan_params_t.learn_mode);
+    sal_res_printf("vlan%d stgid is %d\n", vlanid, bcm_cbx_vlan_params_t.stgid);
+    sal_res_printf("vlan%d mcastid is %d\n", vlanid, bcm_cbx_vlan_params_t.mcastid);
+    sal_res_printf("vlan%d ucastid is %d\n", vlanid, bcm_cbx_vlan_params_t.ucastid);
+    sal_res_printf("vlan%d isolation[0] is %d,isolation[1] is %d,isolation[2] is %d,isolation[3] is %d,\n", vlanid,
+        bcm_cbx_vlan_params_t.isolation[0], bcm_cbx_vlan_params_t.isolation[1], bcm_cbx_vlan_params_t.isolation[2],
+        bcm_cbx_vlan_params_t.isolation[3]);
 
+    return 0;
+}
+
+int bcm_cbx_vlan_create(uint32_t vlanid)
+{
+    int rv = 0;
+    cbx_vlan_params_t params;
+    cbx_vlanid_t vsiid;
+    cbx_vlan_params_t_init(&params);
+
+    params.vlan = vlanid;
+    rv = cbx_vlan_create(&params, &vsiid);
+    if (rv != 0) {
+        if (rv == SOC_E_EXISTS) {
+            sal_res_printf("VLAN %d is exists, create failed\n", vlanid);
+        }
+        return rv;
+    }
+    return 0;
+}
+
+int bcm_cbx_vlan_port_get(uint32_t vlanid)
+{
+    int array_size = 0;
+    uint32_t rv = 0;
+    uint32_t i = 0;
+    uint32_t portid_array[ARRAY_MAX_SIZE] = { 0 };
+    uint32_t mode_array[ARRAY_MAX_SIZE] = { 0 };
+    rv = cbx_vlan_port_get(vlanid, ARRAY_MAX_SIZE, portid_array, mode_array, &array_size);
+    if (rv != 0) {
+        sal_res_printf("rv = %d\n", rv);
+        if (rv == SOC_E_NOT_FOUND) {
+            sal_res_printf("VLAN %d is not exists\n", vlanid);
+        }
+        sal_res_printf("cbx_vlan_port_get failue");
+        return rv;
+    }
+    sal_res_printf("array_size is %d\n", array_size);
+    for (i = 0; i < array_size; i++) {
+        sal_res_printf("portid:%d mode:%d\n", portid_array[i] & 0xf, mode_array[i] & 0xf);
+    }
+    return 0;
+};
+
+int bcm_cbx_vlan_port_add(uint32_t vlanid, uint32_t portid, uint32_t mode)
+{
+    uint32_t rv = 0;
+    rv = cbx_vlan_port_add(vlanid, portid, mode);
+    if (rv != 0) {
+        sal_res_printf("cbx_vlan_port_add failue");
+        return rv;
+    }
+    return 0;
+};
+
+int bcm_cbx_vlan_port_remove(uint32_t vlanid, uint32_t portid)
+{
+    uint32_t rv = 0;
+    rv = cbx_vlan_port_remove(vlanid, portid);
+    if (rv != 0) {
+        sal_res_printf("cbx_vlan_port_remove failue");
+        return rv;
+    }
+    return 0;
+};
+
+int bcm_port_info_get(uint32_t portid)
+{
+    uint32_t rv = 0;
+    cbx_port_params_t byo_cbx_port_params_t;
+    rv = cbx_port_info_get(portid, &byo_cbx_port_params_t);
+    if (rv != 0) {
+        sal_res_printf("cbx_port_info_get failue");
+        return rv;
+    }
+    sal_res_printf("port%d flags is %d\n", portid, byo_cbx_port_params_t.flags);
+    sal_res_printf("port%d port_type is %d\n", portid, byo_cbx_port_params_t.port_type);
+    sal_res_printf("port%d port_index is %d\n", portid, byo_cbx_port_params_t.port_index);
+    sal_res_printf("port%d sli_mode is %d\n", portid, byo_cbx_port_params_t.sli_mode);
+    sal_res_printf("port%d ac_policy is %d\n", portid, byo_cbx_port_params_t.ac_policy);
+    sal_res_printf("port%d default_vid is %d\n", portid, byo_cbx_port_params_t.default_vid);
+    sal_res_printf("port%d default_tc is %d\n", portid, byo_cbx_port_params_t.default_tc);
+    sal_res_printf("port%d default_dp is %d\n", portid, byo_cbx_port_params_t.default_dp);
+    sal_res_printf("port%d learn_limit is %d\n", portid, byo_cbx_port_params_t.learn_limit);
+    sal_res_printf("port%d mtu is %d\n", portid, byo_cbx_port_params_t.mtu);
+    sal_res_printf("port%d port_group is %d\n", portid, byo_cbx_port_params_t.port_group);
+
+    return rv;
+}
+
+int bcm_port_info_set(uint32_t portid, uint32_t porttype)
+{
+    uint32_t rv = 0;
+    cbx_port_params_t set_cbx_port_params_t;
+    cbx_port_params_t_init(&set_cbx_port_params_t);
+    cbx_port_params_t get_cbx_port_params_t;
+    set_cbx_port_params_t.port_type = porttype;
+    rv = cbx_port_info_set(portid, &set_cbx_port_params_t);
+    if (rv != 0) {
+        sal_res_printf("rv=%d, cbx_port_info_set failue\n", rv);
+        return rv;
+    }
+    rv = cbx_port_info_get(portid, &get_cbx_port_params_t);
+    if (rv != 0) {
+        sal_res_printf("rv=%d, cbx_port_info_get failue\n", rv);
+        return rv;
+    }
+    sal_res_printf("port%d flags is %d\n", portid, get_cbx_port_params_t.flags);
+    sal_res_printf("port%d port_type is %d\n", portid, get_cbx_port_params_t.port_type);
+    sal_res_printf("port%d port_index is %d\n", portid, get_cbx_port_params_t.port_index);
+    sal_res_printf("port%d sli_mode is %d\n", portid, get_cbx_port_params_t.sli_mode);
+    sal_res_printf("port%d ac_policy is %d\n", portid, get_cbx_port_params_t.ac_policy);
+    sal_res_printf("port%d default_vid is %d\n", portid, get_cbx_port_params_t.default_vid);
+    sal_res_printf("port%d default_tc is %d\n", portid, get_cbx_port_params_t.default_tc);
+    sal_res_printf("port%d default_dp is %d\n", portid, get_cbx_port_params_t.default_dp);
+    sal_res_printf("port%d learn_limit is %d\n", portid, get_cbx_port_params_t.learn_limit);
+    sal_res_printf("port%d mtu is %d\n", portid, get_cbx_port_params_t.mtu);
+    sal_res_printf("port%d port_group is %d\n", portid, get_cbx_port_params_t.port_group);
+    return rv;
+}
+
+int bcm_cbx_vlan_port_pvid_set(uint16 vlanid, uint32_t portid)
+{
+    uint32_t rv = 0;
+    rv = cbx_vlan_port_pvid_set(vlanid, portid);
+    cbx_port_params_t get_cbx_port_params_t;
+    if (rv != 0) {
+        sal_res_printf("cbx_vlan_port_pvid_set failue");
+        return rv;
+    }
+    rv = cbx_port_info_get(portid, &get_cbx_port_params_t);
+    if (rv != 0) {
+        sal_res_printf("cbx_port_info_get failue");
+        return rv;
+    }
+    sal_res_printf("port%d flags is %d\n", portid, get_cbx_port_params_t.flags);
+    sal_res_printf("port%d port_type is %d\n", portid, get_cbx_port_params_t.port_type);
+    sal_res_printf("port%d port_index is %d\n", portid, get_cbx_port_params_t.port_index);
+    sal_res_printf("port%d sli_mode is %d\n", portid, get_cbx_port_params_t.sli_mode);
+    sal_res_printf("port%d ac_policy is %d\n", portid, get_cbx_port_params_t.ac_policy);
+    sal_res_printf("port%d default_vid is %d\n", portid, get_cbx_port_params_t.default_vid);
+    sal_res_printf("port%d default_tc is %d\n", portid, get_cbx_port_params_t.default_tc);
+    sal_res_printf("port%d default_dp is %d\n", portid, get_cbx_port_params_t.default_dp);
+    sal_res_printf("port%d learn_limit is %d\n", portid, get_cbx_port_params_t.learn_limit);
+    sal_res_printf("port%d mtu is %d\n", portid, get_cbx_port_params_t.mtu);
+    sal_res_printf("port%d port_group is %d\n", portid, get_cbx_port_params_t.port_group);
+    return rv;
+}
+
+int bcm_cbx_port_stat_get(uint32_t portid, uint32_t type)
+{
+    int rv = 0;
+    uint64_t value;
+    rv = cbx_port_stat_get(portid, type, &value);
+    if (rv != 0) {
+        sal_res_printf("rv = %d\n", rv);
+        return rv;
+    }
+    sal_res_printf("portid=%d, type=%d, value=%d\n", portid, type, value);
+    return 0;
+};

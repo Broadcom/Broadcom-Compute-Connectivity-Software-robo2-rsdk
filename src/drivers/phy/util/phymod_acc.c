@@ -1,9 +1,6 @@
 /*
  * $Id: phymod_acc.c,v 1.1.2.6 2013/07/10 07:18:49 mlarsen Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  */
 

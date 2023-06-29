@@ -1,11 +1,3 @@
-#
-# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
-# 
-# $Copyright: (c) 2020 Broadcom Inc.
-# All Rights Reserved$
-#
-#
-
 export CPU = m7
 export TOOLCHAIN_PATH = /projects/ccxsw/toolchains/gcc-arm-none-eabi-4_9-2015q3
 # Local builds

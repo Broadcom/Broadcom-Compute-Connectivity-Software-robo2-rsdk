@@ -1,9 +1,6 @@
 /*
  * $Id: soc_phy.h,v 1.0 2016/03/14 11:53:37 mohanm Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2016 Broadcom Ltd.
  * All Rights Reserved.$
  *
  */

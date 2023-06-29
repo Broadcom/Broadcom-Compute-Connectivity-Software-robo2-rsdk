@@ -1,26 +1,20 @@
 /*----------------------------------------------------------------------
  * $Id: eagle_cfg_seq.h,v 1.1.2.2 2013/09/17 21:11:10 wniu Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  *
- * Broadcom Inc.
+ * Broadcom Corporation
  * Proprietary and Confidential information
  * All rights reserved
- * This source file is the property of Broadcom Inc. and
+ * This source file is the property of Broadcom Corporation, and
  * may not be copied or distributed in any isomorphic form without the
- * prior written consent of Broadcom Inc.
+ * prior written consent of Broadcom Corporation.
  *---------------------------------------------------------------------
  * File       : eagle_cfg_seq.h
  * Description: c functions implementing Tier1s for TEMod Serdes Driver
  *---------------------------------------------------------------------*/
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- *  $Copyright: (c) 2020 Broadcom Inc.All Rights Reserved.$
+ *  $Copyright: (c) 2017 Broadcom Corporation All Rights Reserved.$
  *  $Id$
 */
 

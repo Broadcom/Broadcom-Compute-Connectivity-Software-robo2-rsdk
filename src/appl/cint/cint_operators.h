@@ -1,9 +1,6 @@
 /*
  * $Id: cint_operators.h,v 1.12 2010/08/09 18:59:59 dkelley Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  * File:        cint_operators.h

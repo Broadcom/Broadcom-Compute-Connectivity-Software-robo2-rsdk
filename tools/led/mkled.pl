@@ -76,7 +76,7 @@ sub gen_header {
  * Edits to this file will be lost when it is regenerated.
  *
  * ${dol}Id: ${dol}
- * ${dol}Copyright: (c) $year Broadcom Inc.
+ * ${dol}Copyright: (c) $year Broadcom Corp.
  * All Rights Reserved.${dol}
  *
  * File:	$namebase

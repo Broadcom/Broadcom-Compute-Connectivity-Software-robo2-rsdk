@@ -4,10 +4,7 @@
  * Edits to this file will be lost when it is regenerated.
  *
  * $Id: $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  * File:	memregs.h

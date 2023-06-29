@@ -1,9 +1,6 @@
 /*
  * idxres_afl.c
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Limited.
  *
  * Description:
  *    Module: Aligned Indexed resource management, using banked lists

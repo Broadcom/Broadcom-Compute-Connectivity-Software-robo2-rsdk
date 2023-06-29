@@ -2,11 +2,8 @@
  *         
  * $Id: phy8481_firmware.c $
  * 
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: Copyright 2020 Broadcom Inc.
- * This program is the proprietary software of Broadcom Inc.
+ * $Copyright: Copyright 2017 Broadcom Limited.
+ * This program is the proprietary software of Broadcom Limited
  * and/or its licensors, and may only be used, duplicated, modified
  * or distributed pursuant to the terms and conditions of a separate,
  * written license agreement executed between you and Broadcom

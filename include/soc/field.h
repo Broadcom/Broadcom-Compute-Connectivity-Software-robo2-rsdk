@@ -1,9 +1,6 @@
 /*
  * $Id: field.h,v 1.18 2012/07/10 09:52:51 lintaot Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  * File:        field.h

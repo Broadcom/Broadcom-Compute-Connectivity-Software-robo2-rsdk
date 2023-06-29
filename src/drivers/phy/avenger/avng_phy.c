@@ -1,10 +1,7 @@
 /*
  * $Id: avng_phy.c,v 1.0 2016/03/14 08:17:33 mohanm Exp $
  *
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2016 Broadcom Ltd.
  * All Rights Reserved.$
  *
  */
@@ -702,7 +699,7 @@ avng_phy_speed_set(int unit, uint8_t lport, uint32_t value)
     if (rv == SYS_OK) {
         pc = AVNG_PORT_PHY_CTRL(unit, lport);
 
-        PHY_LOCK(pc);
+        PHY_LOCK(pc);  
         rv = PHY_SPEED_SET(pc, value);
         PHY_UNLOCK(pc);
         pc->speed = value;

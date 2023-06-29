@@ -1,9 +1,6 @@
 /*
  * $Id: $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Limited
  * All Rights Reserved.$
  *
  * File:
@@ -148,7 +145,7 @@ void led_start(int unit)
     uint32 reg_data;
 
     /* Refresh cycle =  33.33 ms */
-    reg_data = 0xCB7355;
+    reg_data = 0xBEBC200;  // 1000ms
     REG_WRITE_LED_LEDUP0_CLK_PARAMSr(unit, &reg_data);
 
     /* { led_scan_start_dly = 0, led_intra_port_dly = 0, ledup_enable = 1} */
@@ -165,8 +162,8 @@ void bcm53158_initialize_led(int unit)
     LED_DEBUG("Unit %d: LED Delay config\n", unit);
     led_delay_config(unit);
 
-    LED_DEBUG("Unit %d: LED Strap load\n", unit);
-    led_load_strap_to_data_ram(unit);
+    // LED_DEBUG("Unit %d: LED Strap load\n", unit);
+    // led_load_strap_to_data_ram(unit);
 
     led_firmware_load(unit);
 

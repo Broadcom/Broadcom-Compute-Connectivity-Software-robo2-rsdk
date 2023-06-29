@@ -1,9 +1,6 @@
 /*
  *
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  */
@@ -51,6 +48,7 @@ extern void sal_backspace(int count);
 
 /* Console - printf */
 extern int sal_printf(const char *fmt, ...);
+extern int sal_res_printf(const char *fmt, ...);
 extern int sal_vprintf(const char *fmt, va_list args);
 
 extern int sal_sprintf(char *buf,const char *templat,...);

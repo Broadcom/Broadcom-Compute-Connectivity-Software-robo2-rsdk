@@ -1,10 +1,7 @@
 /*
  * $Id$
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: Copyright 2020 Broadcom Inc.
- * This program is the proprietary software of Broadcom Inc.
+ * $Copyright: Copyright 2017 Broadcom Corporation.
+ * This program is the proprietary software of Broadcom Corporation
  * and/or its licensors, and may only be used, duplicated, modified
  * or distributed pursuant to the terms and conditions of a separate,
  * written license agreement executed between you and Broadcom
@@ -15,16 +12,16 @@
  * and all intellectual property rights therein.  IF YOU HAVE
  * NO AUTHORIZED LICENSE, THEN YOU HAVE NO RIGHT TO USE THIS SOFTWARE
  * IN ANY WAY, AND SHOULD IMMEDIATELY NOTIFY BROADCOM AND DISCONTINUE
- * ALL USE OF THE SOFTWARE.  
- *  
+ * ALL USE OF THE SOFTWARE.
+ *
  * Except as expressly set forth in the Authorized License,
- *  
+ *
  * 1.     This program, including its structure, sequence and organization,
  * constitutes the valuable trade secrets of Broadcom, and you shall use
  * all reasonable efforts to protect the confidentiality thereof,
  * and to use this information only in connection with your use of
  * Broadcom integrated circuit products.
- *  
+ *
  * 2.     TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS
  * PROVIDED "AS IS" AND WITH ALL FAULTS AND BROADCOM MAKES NO PROMISES,
  * REPRESENTATIONS OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY,
@@ -34,7 +31,7 @@
  * ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
  * CORRESPONDENCE TO DESCRIPTION. YOU ASSUME THE ENTIRE RISK ARISING
  * OUT OF USE OR PERFORMANCE OF THE SOFTWARE.
- * 
+ *
  * 3.     TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL
  * BROADCOM OR ITS LICENSORS BE LIABLE FOR (i) CONSEQUENTIAL,
  * INCIDENTAL, SPECIAL, INDIRECT, OR EXEMPLARY DAMAGES WHATSOEVER

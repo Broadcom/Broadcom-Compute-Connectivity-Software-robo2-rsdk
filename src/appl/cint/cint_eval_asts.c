@@ -1,9 +1,6 @@
 /*
  * $Id: cint_eval_asts.c,v 1.58 2012/12/18 17:44:20 noahm Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  * File:        cint_eval_asts.c

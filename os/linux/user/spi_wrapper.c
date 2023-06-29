@@ -1,8 +1,5 @@
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  *
  * Filename:
@@ -44,7 +41,7 @@
 #define USER_SPI_DEVICE_NAME    "/dev/spidev1"
 #define USER_SPI_INTF_DEFAULT             "1"
 #else
-#define USER_SPI_DEVICE_NAME    "/dev/spidev32766"
+#define USER_SPI_DEVICE_NAME    "/dev/spidev3"
 #define USER_SPI_INTF_DEFAULT             "0"        /*  SPI0 */
 #endif
 

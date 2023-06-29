@@ -1,10 +1,7 @@
 /*
  * $Id: mdk_phy.h,v 1.24 2015/11/10 04:22:58 kevinwu Exp $
  *
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  */

@@ -1,19 +1,4 @@
-/*
- * $ID:$
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
- * All Rights Reserved$
- * File:
- *    avs.h
- * Description
- *    avs.h
- */
 
-#ifndef __AVS_H__
-#define __AVS_H__
-`
 typedef enum {
     PVT_TEMPERATURE = 0, /* Bit 0 - Temperature measurement */
     PVT_0P85V_0     = 1, /* Bit 1 - Voltage 0p85V<0> measurement */
@@ -153,5 +138,3 @@ typedef struct {
 /* limits on DAC code */
 #define BCHP_AVS_DAC_CODE_min 150
 #define BCHP_AVS_DAC_CODE_max 800
-
-#endif /* __AVS_H__ */

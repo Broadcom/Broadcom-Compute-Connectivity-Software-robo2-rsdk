@@ -6,18 +6,15 @@
 *  Description   :  Header file with Error Code enums                            *
 *  Revision      :  $Id: srds_api_err_code.h 1017 2015-04-24 22:07:57Z kirand $ *
 *                                                                                *
-*
-* This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
-*
-*  $Copyright: (c) 2020 Broadcom Inc.                                    *
+*  $Copyright: (c) 2017 Broadcom Corporation                                     *
 *  All Rights Reserved$                                                          *
 *  No portions of this material may be reproduced in any form without            *
 *  the written permission of:                                                    *
-*      Broadcom Inc.                                                     *
+*      Broadcom Corporation                                                      *
 *      5300 California Avenue                                                    *
 *      Irvine, CA  92617                                                         *
 *                                                                                *
-*  All information contained in this document is Broadcom Inc.           *
+*  All information contained in this document is Broadcom Corporation            *
 *  company private proprietary, and trade secret.                                *
 *                                                                                *
 **********************************************************************************

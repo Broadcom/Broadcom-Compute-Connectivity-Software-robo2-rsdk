@@ -1,10 +1,7 @@
 /*
  * $Id: cint_variables.c,v 1.12 2011/11/04 00:39:20 dkelley Exp $
  * 
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  * 
  * File:        cint_variables.c

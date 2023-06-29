@@ -2,9 +2,6 @@
  *         
  * $Id: phymod.c,v 1.2.2.13 2013/08/12 11:43:46 dayad Exp $
  * 
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
  * $Copyright: 
  * All Rights Reserved.$
  *         

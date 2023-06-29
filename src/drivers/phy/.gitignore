@@ -1,0 +1,7 @@
+include/phy/chip/
+include/phymod/chip/
+pkgsrc/bus/
+pkgsrc/chip/
+pkgsrc/installed-chips
+sym/chip/
+

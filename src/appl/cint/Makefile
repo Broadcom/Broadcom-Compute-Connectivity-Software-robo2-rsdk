@@ -1,8 +1,5 @@
 # $Id: Makefile,v 1.30 2013/05/10 20:55:15 dkelley Exp $
-# 
-# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
-#
-# $Copyright: (c) 2020 Broadcom Inc.
+# $Copyright: (c) 2017 Broadcom Corp.
 # All Rights Reserved.$
 #
 # Makefile for CINT library
@@ -154,7 +151,7 @@ cint: $(OBJS)
 #	$(Q)echo -n '   $$' >> $(TMP)
 #	$(Q)echo -n 'Id: ' >> $(TMP)
 #	$(Q)echo '$$' >> $(TMP)
-#	$(Q)echo '   $$$(COPYRIGHT_TAG): $(YEAR) Broadcom Inc.' >> $(TMP)
+#	$(Q)echo '   $$$(COPYRIGHT_TAG): $(YEAR) Broadcom Corp.' >> $(TMP)
 #	$(Q)echo '   All Rights Reserved.$$' >> $(TMP)
 #	$(Q)echo '*/' >> $(TMP)
 #	$(Q)cat cint_c.tab.h >> $(TMP)

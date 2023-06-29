@@ -1,10 +1,7 @@
 /*
  * $Id: cint_interpreter.c,v 1.47 2012/09/26 20:47:33 noahm Exp $
  * 
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: 2020 Broadcom Inc.
+ * $Copyright: 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  * File:        cint_interpreter.c

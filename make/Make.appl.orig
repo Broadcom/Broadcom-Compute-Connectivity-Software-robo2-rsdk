@@ -1,0 +1,66 @@
+#
+# $Copyright: (c) 2017 Broadcom Corp.
+# All Rights Reserved$
+#
+# Make.appl:
+#       Defines the application to be compiled into the
+#       build image based on build flavor, os and other
+#       env variables
+
+ifeq ($(OS),linux)
+    CONFIG_CINT = 1
+else ifeq ($(BUILD_FLAVOR),BOOT_LOADER)
+    export CONFIG_LOADER = 1
+    export CONFIG_ZMODEM = 1
+    export CFLAGS += -DCONFIG_BRCM -DINCLUDE_CLI
+else # ifeq ($(BUILD_FLAVOR),ROBO_OS)
+    # Enable this config flag to build web server
+    CONFIG_WEB_SERVER ?= 1
+
+    # Enable cint if web server is disabled
+    ifneq ($(CONFIG_WEB_SERVER),1)
+        CONFIG_CINT=1
+    endif
+    # Or the env explicitly overrides cint be enabled with web server
+    ifeq ($(CONFIG_CINT_WITH_WEB_SERVER),1)
+        CONFIG_CINT=1
+    endif
+endif
+
+# Web server dependent modules
+ifeq ($(CONFIG_WEB_SERVER),1)
+    export CONFIG_IP_STACK = 1
+    export WEB_ROOT = $(TOPDIR)/src/appl/web/web_root
+    export CONFIG_FS = 1
+    export CONFIG_FS_SIZE_IN_KB = 1536
+endif
+
+export WEB_ROOT ?= $(TOPDIR)/include/shared/version.h
+
+# Enable web server
+ifeq ($(CONFIG_WEB_SERVER),1)
+     export CFLAGS += -DCONFIG_WEB_SERVER=1
+endif
+
+# Enable ip stack
+ifeq ($(CONFIG_IP_STACK),1)
+     export CFLAGS += -DCONFIG_IP_STACK=1
+     export CONFIG_LLDP ?= 1
+     export CONFIG_IGMP_SNOOPING ?= 1
+     export CONFIG_RSTP ?= 1
+endif
+
+# Enable cint + web server
+ifeq ($(CONFIG_CINT_WITH_WEB_SERVER),1)
+     export CFLAGS += -DCONFIG_CINT_WITH_WEB_SERVER=1
+endif
+
+# Disable apps that are not selected
+export CONFIG_CLI ?= 0
+export CONFIG_DIAG ?= 0
+export CONFIG_TEST ?= 0
+export CONFIG_CINT ?= 0
+export CONFIG_WEB_SERVER ?= 0
+export CONFIG_IP_STACK ?= 0
+export CONFIG_M7_TCAM_TEST ?= 0
+export CONFIG_AVS ?= 0

@@ -1,9 +1,6 @@
 #  -*- Makefile -*-
 # $Id: Makefile,v 1.1 2009/05/12 22:49:16 jtowns Exp $
-# 
-# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
-#
-# $Copyright: (c) 2020 Broadcom Inc.
+# $Copyright: (c) 2017 Broadcom Corp.
 # All Rights Reserved.$
 #
 LOCALDIR = src/appl/wrapper_cint

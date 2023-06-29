@@ -1,10 +1,7 @@
 /*
  * $Id: avng_phy_ctrl.h,v 1.5 2015/01/06 09:39:35 justinch Exp $
  *
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  */

@@ -1,9 +1,6 @@
 /*
  * * $ID: $
- * * 
- * * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- * * 
- * * $Copyright: (c) 2020 Broadcom Inc.
+ * * $Copyright: (c) 2017 Broadcom Corp.
  * * All Rights Reserved$
  * *
  * * File:
@@ -231,8 +228,8 @@ cbxi_robo2_link_scan_update_port(int unit, int port)
             }
         }
     }
-#if 0
-    else
+#if 0    
+    else 
     {
         /* Link down */
         /* Go to the default speed */

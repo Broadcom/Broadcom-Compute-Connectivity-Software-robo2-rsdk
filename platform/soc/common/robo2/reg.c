@@ -1,8 +1,5 @@
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  *
  * Filename:
@@ -757,11 +754,11 @@ drv_robo2_apb2pbus_reg_read_hw(int unit, int port, uint32 addr, void *data_buf, 
 
     if (timeout <= 0) {
         LOG_ERROR(BSL_LS_SOC_REG,
-            (BSL_META_U(unit, "APB2PBBUS Read Timeout addr = %x\n"), addr));
+            (BSL_META_U(unit, "APB2PBBUS Read Timeout addr = %x Port %d\n"), addr, port));
         return SOC_E_TIMEOUT;
     } else if (err == 1) {
         LOG_ERROR(BSL_LS_SOC_REG,
-            (BSL_META_U(unit, "APB2PBBUS Read Failed addr = %x\n"), addr));
+            (BSL_META_U(unit, "APB2PBBUS Read Failed addr = %x Port %d\n"), addr, port));
         return SOC_E_INTERNAL;
     }
 

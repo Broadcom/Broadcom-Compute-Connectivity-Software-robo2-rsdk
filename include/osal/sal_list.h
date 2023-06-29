@@ -1,8 +1,5 @@
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright Broadcom Inc.
+ * $Copyright Broadcom Corporation$
  *
  */
 #ifndef __SAL_LIST_H__

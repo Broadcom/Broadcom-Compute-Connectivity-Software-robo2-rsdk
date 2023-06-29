@@ -1,9 +1,6 @@
 /*
  * $Id: cint_porting.h,v 1.17 2012/11/08 19:51:52 dkelley Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  * File:        cint_porting.h

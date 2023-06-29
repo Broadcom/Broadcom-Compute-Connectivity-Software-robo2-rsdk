@@ -1,8 +1,5 @@
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Limited.
  * All Rights Reserved.$
  * File:
  *    drv.h
@@ -586,4 +583,5 @@ extern void dump_cb_counters(int unit);
 extern void dump_port_status(int unit);
 extern void dump_l2_table(int unit);
 extern int soc_robo2_essential_init(int unit);
+extern int bcm_port_link_status_get(int port);
 #endif /* __DRV_H */

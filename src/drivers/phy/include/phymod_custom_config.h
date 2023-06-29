@@ -1,9 +1,6 @@
 /*
  * $Id: phymod_custom_config.h,v 1.1.2.6 2013/08/08 04:22:38 mlarsen Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  *
  * System interface definitions for Switch SDK

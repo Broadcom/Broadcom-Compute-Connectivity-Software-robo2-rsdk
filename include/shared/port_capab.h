@@ -1,10 +1,7 @@
 /*
  * $Id: port_capab.h
  *
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.  All Rights Reserved.$
+ * $Copyright: (c) 2017 Broadcom Corp.  All Rights Reserved.$
  *
  */
 #ifndef PORT_CAPAB_H

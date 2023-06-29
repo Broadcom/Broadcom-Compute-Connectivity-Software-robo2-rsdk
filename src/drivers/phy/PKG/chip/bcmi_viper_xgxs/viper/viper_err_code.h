@@ -6,24 +6,21 @@
 /*  Description   :  Header file with Error Code enums                            */
 /*  Revision      :  viper_err_code.h 371 2014-03-10 23:22:00Z mageshv $          */
 /*                                                                                */
-/*  Copyright: (c) 2020 Broadcom Inc.All Rights Reserved.                 */
+/*  Copyright: (c) 2017 Broadcom Corporation All Rights Reserved.                 */
 /*  All Rights Reserved                                                           */
 /*  No portions of this material may be reproduced in any form without            */
 /*  the written permission of:                                                    */
-/*      Broadcom Inc.                                                     */
+/*      Broadcom Corporation                                                      */
 /*      5300 California Avenue                                                    */
 /*      Irvine, CA  92617                                                         */
 /*                                                                                */
-/*  All information contained in this document is Broadcom Inc.           */
+/*  All information contained in this document is Broadcom Corporation            */
 /*  company private proprietary, and trade secret.                                */
 /*                                                                                */
 /**********************************************************************************/
 /**********************************************************************************/
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- *  $Copyright: (c) 2020 Broadcom Inc.All Rights Reserved.$
+ *  $Copyright: (c) 2017 Broadcom Corporation All Rights Reserved.$
  *  $Id$
 */
 

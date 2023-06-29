@@ -2,9 +2,6 @@
  *         
  * $Id: eagle_common.c,v 1.1.2.5 2013/09/12 10:43:06 nirf Exp $
  * 
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
  * $Copyright: 
  * All Rights Reserved.$
  *         

@@ -1,9 +1,6 @@
 /*
  * * $ID: $
- * * 
- * * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- * * 
- * * $Copyright: (c) 2020 Broadcom Inc.
+ * * $Copyright: (c) 2017 Broadcom Corp.
  * * All Rights Reserved$
  * *
  * * File:
@@ -648,7 +645,6 @@ cbxi_robo2_port_to_lpg(int unit, cbx_port_t port, cbxi_pgid_t *lpg)
 int
 cbxi_robo2_port_validate(cbx_portid_t  portid, cbx_port_t *port_out,
                          cbxi_pgid_t *local_pg, int *unit) {
-
     int rv = CBX_E_NONE;
     int max_index = 0;
     pbmp_t p_map;
@@ -658,6 +654,11 @@ cbxi_robo2_port_validate(cbx_portid_t  portid, cbx_port_t *port_out,
 
     *unit = CBX_AVENGER_PRIMARY;
 
+    if (portid == 2) {
+        sal_printf("Don't check port 2.\n");
+        return CBX_E_NONE;
+    }
+
     /* Validate the portid passed */
     CBX_IF_ERROR_RETURN(cbxi_robo2_portid_validate(portid, port_out));
     if (CBX_PORTID_IS_MCAST(portid)) {
@@ -666,10 +667,13 @@ cbxi_robo2_port_validate(cbx_portid_t  portid, cbx_port_t *port_out,
         return CBX_E_NONE;
     }
     max_index = soc_robo2_ipp_pp2lpg_max_index(CBX_AVENGER_PRIMARY);
+    // sal_printf("max_index is %d\n", max_index);
+
     if (max_index < 0) {
         sal_printf("Internal error\n");
         return CBX_E_INTERNAL;
     }
+    // sal_printf("*port_out is %d\n", *port_out);
     if ((*port_out > max_index)) {
         if ((SOC_IS_CASCADED(CBX_AVENGER_PRIMARY))) {
             *port_out = *port_out - max_index - 1;
@@ -1638,6 +1642,7 @@ cbxi_port_link_status_get(int unit, cbx_port_t port, uint32_t *link_status ) {
     }
 #endif /* READ_LINK_STATUS_FROM_PHY */
     /* Read admin status */
+    // sal_printf("begin cbxi_port_admin_status_get(%d, %d)\n", unit,port);
     rv = cbxi_port_admin_status_get(unit, port, &admin_status);
     if (CBX_FAILURE(rv)) {
         LOG_ERROR(BSL_LS_FSAL_PORT,
@@ -1917,6 +1922,7 @@ cbxi_port_admin_status_get(int unit, cbx_port_t port_out, int *value) {
     int rv = CBX_E_NONE;
     uint32 en = 0;
     *value = 0;
+    // sal_printf("begin MAC_ENABLE_GET, unit=%d, port_out=%d)\n", unit,port_out);
     rv = MAC_ENABLE_GET(port_info[unit][port_out].p_mac,
                         unit, port_out, &en);
     if (CBX_FAILURE(rv)) {
@@ -2970,20 +2976,20 @@ cbx_port_init(void) {
     }
     /* TBD: PBMP_ALL yet to be defined by switch module.
      * Assuming all 16 ports */
-    PBMP_ALL(0) = 0xFFFF;
-    PBMP_XL_ALL(0) = 0x3C00;
-    PBMP_GE_ALL(0) = 0x03ff;
+    PBMP_ALL(0) = 0x3003;  //default 0xFFFF 0x300F
+    PBMP_XL_ALL(0) = 0x3000;  //default 0x3C00
+    PBMP_GE_ALL(0) = 0x0003;  //default 0x03ff 0x000F
     PBMP_FE_ALL(0) = 0x0;
     PBMP_CASCADE(0) = 0x0;
 
     if ( SOC_IS_CASCADED(0) ) {
-        PBMP_ALL(1) = 0x3FFF;
+        PBMP_ALL(1) = 0x3003;
 #if CONFIG_PORT_EXTENDER
         /* Include Loopback port */
         PBMP_ALL(1) |= (1 << CBX_PE_LB_PORT);
 #endif
-        PBMP_XL_ALL(1) = 0x3C00;
-        PBMP_GE_ALL(1) = 0x03ff;
+        PBMP_XL_ALL(1) = 0x3000;  //default 0x3C00;
+        PBMP_GE_ALL(1) = 0x0003;  //default 0x03ff; 0x000F
         PBMP_FE_ALL(1) = 0x0;
         PBMP_CASCADE(1) = 0x0;
     }
@@ -3370,4 +3376,3 @@ cbx_port_attribute_set(cbx_portid_t       port,
     }
     return rv;
 }
-

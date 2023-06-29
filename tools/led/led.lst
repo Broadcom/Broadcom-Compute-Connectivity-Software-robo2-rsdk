@@ -1,0 +1,140 @@
+00:         ;Updated code to support RM310. -- 07/22/2023
+00:         ;-------------------------- start of program --------------------------
+00:         begin:
+00: 02 0C   	ld A,12
+02: 28      	Port A
+03: 32 07   	Pushst LNK
+05: 87      	pack
+06: 02 0D   	ld A,13
+08: 28      	Port A
+09: 32 07   	Pushst LNK
+0B: 87      	pack
+0C:         	;update refresh phase within 1Hz
+0C: 06 F3   	ld A, (phase)
+0E: 80      	inc A ;next phase
+0F: D2 0A   	cmp A, 10
+11: 71 14   	jc chkblink
+13: E0      	sub A, A ;A = 0
+14:         chkblink:
+14: 60 F3   	ld (phase), A
+16: E9      	sub B, B ; B =0
+17: D2 05   	cmp A, 5
+19: 75 1C   	jnc noblink
+1B: 81      	inc B ; B = 1
+1C:         noblink:
+1C: 61 F2   	ld (blink), B
+1E: 02 00   	ld A, 0
+20:         setxfiport:
+20: 02 0B   	ld A, 0xB ;port 13 status[0:6]
+22: 60 F0   	ld (portnum), A
+24: 02 0B   	ld A, 0xB ; port 13 status[7]
+26: 60 F1   	ld (portlnk), A
+28: 67 32   	call sgmiixfiloop
+2A: 96 F0   	dec(portnum) ; port 12 status[0:6]
+2C: 96 F1   	dec (portlnk) ; port 12 status[7]
+2E: 67 32   	call sgmiixfiloop
+30: 77 80   	jmp exit
+32:         sgmiixfiloop:
+32: 2E F0   	port (portnum)
+34: 32 01   	pushst TX_EV;
+36: 32 00   	pushst RX_EV;
+38: B7      	tor;
+39: 32 07   	pushst LNK;
+3B: C7      	tand;
+3C: 26 F2   	push (blink);
+3E: C7      	tand;
+3F: 32 01   	pushst TX_EV;
+41: 32 00   	pushst RX_EV;
+43: B7      	tor;
+44: 32 07   	pushst LNK;
+46: A7      	txor;
+47: B7      	tor;
+48: D7      	tinv;
+49: 67 7E   	call pack_cmd2;
+4B:         
+4B: 2E F0   	port (portnum)
+4D: 32 01   	pushst TX_EV;
+4F: 32 00   	pushst RX_EV;
+51: B7      	tor;
+52: 32 07   	pushst LNK;
+54: C7      	tand;
+55: 26 F2   	push (blink);
+57: C7      	tand;
+58: 32 01   	pushst TX_EV;
+5A: 32 00   	pushst RX_EV;
+5C: B7      	tor;
+5D: 32 07   	pushst LNK;
+5F: A7      	txor;
+60: B7      	tor;
+61: D7      	tinv;
+62: 67 7E   	call pack_cmd2;
+64:         
+64: 2E F0   	port (portnum)
+66: 32 01   	pushst TX_EV;
+68: 32 00   	pushst RX_EV;
+6A: B7      	tor;
+6B: 32 07   	pushst LNK;
+6D: C7      	tand;
+6E: 26 F2   	push (blink);
+70: C7      	tand;
+71: 32 01   	pushst TX_EV;
+73: 32 00   	pushst RX_EV;
+75: B7      	tor;
+76: 32 07   	pushst LNK;
+78: A7      	txor;
+79: B7      	tor;
+7A: D7      	tinv;
+7B: 67 7E   	call pack_cmd2;
+7D: 57      	ret
+7E:         pack_cmd2:
+7E: 87      	pack
+7F: 57      	ret
+80:         exit:
+80: 3A 08   	send 8
+82:         
+82:         ;data storage
+82:         phase equ 0xF3;phase within 30 Hz
+82:         blink   equ 0xF2;1 if blink on, 0 if blink off
+82:         portlnk equ 0xF1
+82:         portnum equ 0xF0;temp to hold whichport we are working on
+82:         RX_EV equ 0x0
+82:         TX_EV equ 0x1
+82:         LNK equ 0x7
+82:         ;-------------end---------------
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+82:         
+
+
+
+----- symbol table, 14 symbols -----
+       begin	0x0000
+    chkblink	0x0014
+     noblink	0x001C
+  setxfiport	0x0020
+sgmiixfiloop	0x0032
+   pack_cmd2	0x007E
+        exit	0x0080
+       phase	0x00F3
+       blink	0x00F2
+     portlnk	0x00F1
+     portnum	0x00F0
+       rx_ev	0x0000
+       tx_ev	0x0001
+         lnk	0x0007

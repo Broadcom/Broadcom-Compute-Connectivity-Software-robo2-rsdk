@@ -1,8 +1,5 @@
 /*
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Limited.
  * All Rights Reserved.$
  *
  * File:
@@ -3367,4 +3364,21 @@ dump_l2_table(int unit)
             }
         }
     }
+}
+
+int
+bcm_port_link_status_get(int port)
+{
+    int rv;
+    uint32 linkstatus = 0;
+    rv = cbxi_port_link_status_get(0, port, &linkstatus);
+    if (rv != SOC_E_NONE) {
+        sal_res_printf("cbxi_port_link_status_get failue,rv is %d", rv);
+        return rv;
+    }
+    sal_res_printf("port %d link status is %s\n", port, linkstatus ? "UP" : "DOWN");
+    if (linkstatus) {
+        return SOC_E_NONE;
+    }
+    return SOC_E_NOT_FOUND;
 }

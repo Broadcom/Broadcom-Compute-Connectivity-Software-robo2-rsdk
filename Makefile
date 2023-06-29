@@ -1,7 +1,5 @@
-# 
-# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
 #
-# $Copyright: (c) 2020 Broadcom Inc.
+# $Copyright: (c) 2017 Broadcom Corp.
 # All Rights Reserved$
 # $ID:$
 #
@@ -79,6 +77,8 @@ web_server_sim: BUILD_FLAVOR = WEB_SERVER_SIM
 define os_make_recipe
 $(1):
 	$(Q)echo [Target ... $(1)]
+	$(Q)echo [CFLAGS=$(CFLAGS) TOPDIR=$(TOPDIR) OS=$(OS) OS_MODE=$(OS_MODE) MAKECMDGOALS=$(MAKECMDGOALS) \
+	BUILD_FLAVOR=$(BUILD_FLAVOR) BOARD_TYPE=$(BOARD_TYPE)]
 	$(Q)CFLAGS=$$(CFLAGS) make -C $(TOPDIR)/os/$$(OS)/$$(OS_MODE) $(filter clean,$(MAKECMDGOALS)) \
         OS=$$(OS) BUILD_FLAVOR=$$(BUILD_FLAVOR) BOARD_TYPE=$$(BOARD_TYPE) TARGET_IMG=$(1)
 endef

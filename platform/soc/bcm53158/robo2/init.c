@@ -1,9 +1,6 @@
 /*
  * $Id: $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  *
  * File:
@@ -210,7 +207,7 @@ void display_banner(void)
 #ifndef CONFIG_BOOTLOADER
     uint32 chipid, revid, mdlid;
 #endif
-    sysprint("\n\nCopyright 2015-2020 Broadcom Inc.n");
+    sysprint("\n\nCopyright 2015-2017 Broadcom Limited\n");
     sysprint("         All rights reserved\n\n");
 #ifndef CONFIG_BOOTLOADER
     get_device_id(0, &chipid, &revid, &mdlid);

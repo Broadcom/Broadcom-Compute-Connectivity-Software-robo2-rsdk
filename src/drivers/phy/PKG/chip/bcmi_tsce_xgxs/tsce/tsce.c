@@ -2,9 +2,6 @@
  *
  * $Id: tsce.c,v 1.2.2.26 2013/09/16 12:23:15 nirf Exp $
  *
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
  * $Copyright:
  * All Rights Reserved.$
  *

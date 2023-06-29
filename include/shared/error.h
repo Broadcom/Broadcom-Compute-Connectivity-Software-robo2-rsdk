@@ -1,9 +1,6 @@
 /*
  * $Id: error.h,v 1.23 2012/03/02 15:14:01 yaronm Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved.$
  *
  * This file defines common error codes to be shared between API layers.

@@ -1,8 +1,5 @@
 /* * $ID: $
- * * 
- * * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- * * 
- * * $Copyright: (c) 2020 Broadcom Inc.
+ * * $Copyright: (c) 2017 Broadcom Corp.
  * * All Rights Reserved$
  * *
  * * File:
@@ -14,6 +11,7 @@
 #include "osal/sal_types.h"
 #include "shared/types.h"
 #include "shared/portdb.h"
+#include "app.h"
 #include "port_capab.h"
 
 

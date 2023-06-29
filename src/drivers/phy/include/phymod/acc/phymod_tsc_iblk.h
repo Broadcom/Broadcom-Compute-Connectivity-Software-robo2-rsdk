@@ -1,9 +1,6 @@
 /*
  * $Id: phymod_tsc_iblk.h,v 1.1.2.1 2013/05/29 22:23:56 mlarsen Exp $
- * 
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
+ * $Copyright: (c) 2017 Broadcom Corp.
  * All Rights Reserved$
  */
 

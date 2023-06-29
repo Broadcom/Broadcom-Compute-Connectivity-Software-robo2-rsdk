@@ -1,16 +1,3 @@
-/*
- *
- * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- *
- * $Copyright: (c) 2020 Broadcom Inc.
- * All Rights Reserved.$
- *
- * fsal_ts_cint_data.c
- * 
- * Hand-coded support for FSAL routines.
- */
-
-
 int fsal_port_cint_data_not_empty;
 
 #if defined(INCLUDE_LIB_CINT)

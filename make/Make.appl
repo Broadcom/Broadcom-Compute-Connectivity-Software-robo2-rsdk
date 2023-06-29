@@ -1,8 +1,5 @@
 #
-# 
-# This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
-#
-# $Copyright: (c) 2020 Broadcom Inc.
+# $Copyright: (c) 2017 Broadcom Corp.
 # All Rights Reserved$
 #
 # Make.appl:
@@ -12,6 +9,7 @@
 
 ifeq ($(OS),linux)
     CONFIG_CINT = 1
+    CONFIG_VLAN_PVID = 1
 else ifeq ($(BUILD_FLAVOR),BOOT_LOADER)
     export CONFIG_LOADER = 1
     export CONFIG_ZMODEM = 1

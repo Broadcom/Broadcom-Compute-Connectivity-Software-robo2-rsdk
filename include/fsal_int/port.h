@@ -1,9 +1,6 @@
 /* *
  * * $ID: $
- * * 
- * * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- * * 
- * * $Copyright: (c) 2020 Broadcom Inc.
+ * * $Copyright: (c) 2017 Broadcom Limited.
  * *
  * * File:
  * *     port.h
@@ -74,16 +71,17 @@ typedef enum cbx_port_loopback_e {
  * Default external cpu port is 14.
  */
 #ifndef CBX_PORT_ECPU
-#define CBX_PORT_ECPU       ((PBMP_ALL(0) & (1 << 0)) ? 0 : 14)  /* External CPU Port, Non RGMII */
+#define CBX_PORT_ECPU       2/*((PBMP_ALL(0) & (1 << 0)) ? 0 : 14) External CPU Port, Non RGMII */
 #endif
 #else /* !CONFIG_EXTERNAL_HOST */
+
 #ifdef CONFIG_PORT_EXTENDER
 #define CBX_PORT_ECPU       15 /* Port 14 is used for loopback */
 #else /* !CONFIG_PORT_EXTENDER */
 #define CBX_PORT_ECPU       14  /* External CPU Port, RGMII */
 #endif /* CONFIG_PORT_EXTENDER */
-#endif /* CONFIG_EXTERNAL_HOST */
 
+#endif /* CONFIG_EXTERNAL_HOST */
 
 #define CBX_PE_LB_PORT      14
 #define CBX_PORT_GPHY_MAX    8

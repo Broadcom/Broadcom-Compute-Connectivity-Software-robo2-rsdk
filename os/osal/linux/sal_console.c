@@ -1,9 +1,6 @@
 /*
  * * $ID: $
- * * 
- * * This license is set out in https://raw.githubusercontent.com/Broadcom/Broadcom-Compute-Connectivity-Software-robo2-rsdk/master/Legal/LICENSE file.
- * * 
- * * $Copyright: (c) 2020 Broadcom Inc.
+ * * $Copyright: (c) 2017 Broadcom Corp.
  * * All Rights Reserved$
  * *
  * * File:
@@ -18,6 +15,9 @@
 
 #define  SAL_PRINT_BUF_SIZE    256
 
+#define  SAL_PRINT_CMD_SIZE    1024
+#define  SAL_PRINT_LOG_FILE    "/var/log/rsdk.log"
+#define  SAL_RES_LOG_FILE "/tmp/bcm.res.log"
 
 static char lastchar;
 static const char digits[17] = "0123456789ABCDEF";
@@ -510,14 +510,35 @@ int sal_printf(const char *fmt, ...)
     int rv;
     va_list arg_ptr;
     char buf[SAL_PRINT_BUF_SIZE];
+    char cmdstr[SAL_PRINT_CMD_SIZE] = { 0 };
 
     va_start(arg_ptr, fmt);
     rv = sal_vsprintf(buf, fmt, arg_ptr);
     va_end(arg_ptr);
 
     printf("%s",buf);
+    sprintf(cmdstr, "echo -n \"%s\"  >> %s", buf, SAL_PRINT_LOG_FILE);
+    system(cmdstr);
     return rv;
 }
+
+int sal_res_printf(const char *fmt, ...)
+{
+    int rv;
+    va_list arg_ptr;
+    char buf[SAL_PRINT_BUF_SIZE];
+    char cmdstr[SAL_PRINT_CMD_SIZE] = { 0 };
+
+    va_start(arg_ptr, fmt);
+    rv = sal_vsprintf(buf, fmt, arg_ptr);
+    va_end(arg_ptr);
+
+    printf("%s",buf);
+    sprintf(cmdstr, "echo -n \"%s\"  >> %s", buf, SAL_RES_LOG_FILE);
+    system(cmdstr);
+    return rv;
+}
+
 /*
  * Function:
  *    sal_vprintf(const char *fmt, ...)
